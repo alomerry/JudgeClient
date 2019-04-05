@@ -6,4 +6,4 @@ Alarm:
 Client:
 	g++ -o client judge_client.cpp -lmysqlclient -L/usr/lib64/mysql -std=c++11
 clean:
-	rm -rf test client alarm
+	rm -rf test alarm client
