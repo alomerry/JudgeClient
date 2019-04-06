@@ -32,7 +32,7 @@ void judge_solution();
 
 int main(int argc, char **argv)
 {
-    testMysql();
+    testMysql();;
 
     int i;
     for (i = 0; i < argc; i++)
