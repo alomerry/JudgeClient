@@ -127,8 +127,8 @@ int compire()
     int pid;
 
     // freopen("log/error.out", "w", stdout);
-    char *arg[] = {"g++", "test.cc", "-o", "test", NULL};
-    // char *arg[] = {"./alarm", NULL};
+    // char *arg[] = {"g++", "test.cc", "-o", "test", NULL};
+    char *arg[] = {"./alarm", NULL};
     pid = fork();
     if (pid < 0)
     {
@@ -145,7 +145,7 @@ int compire()
             // printf("错误原因:%s\n", mesg);
         }
         cout << "子函数执行完毕！" << endl;
-        return -1;
+        exit(666);
     }
     else //父进程
     {
@@ -160,6 +160,7 @@ int compire()
         else
         {
             cout << "非正常结束";
+            printf_wrongMessage();
         }
     }
 }
@@ -291,12 +292,11 @@ int get_proc_status(pid_t pid, const char *mark)
  */
 long get_file_size(const char *filename)
 {
-	struct stat f_stat;
+    struct stat f_stat;
 
-	if (stat(filename, &f_stat) == -1)
-	{
-		return 0;
-	}
-
-	return (long)f_stat.st_size;
+    if (stat(filename, &f_stat) == -1)
+    {
+        return 0;
+    }
+    return (long)f_stat.st_size;
 }
