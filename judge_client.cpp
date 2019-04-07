@@ -45,6 +45,21 @@ int main(int argc, char **argv)
     // system("cd ../ && mkdir 6666");
     // execute_cmd("test %s %d", "content", 16);
     int comile_flag = compile();
+    if (comile_flag != 0)
+    {
+        //编译错误，更新数据库并退出
+    }
+    else
+    {
+        //更新数据库
+    }
+    /*
+    1.读取输入输出文件（下载或者访问）
+    2.设置时间限制，内存限制
+    3. (1)子进程运行程序
+       (2)父进程等待结束后判断程序输出和正确结果的异同
+    4.更新结果
+    */
     /*
     pid_t pidApp = fork();
     if (pidApp == 0) //子进程
