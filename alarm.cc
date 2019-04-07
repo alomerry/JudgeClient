@@ -4,11 +4,10 @@
 #include <stdlib.h>
 int main(void)
 {
-    alarm(5);
-    int ret;
+    // alarm(5);
+    int ret = 10;
     sleep(3);
-    ret = alarm(1);
-    printf("%d\n", ret);
-    pause();
+    // ret = alarm(1);
+    printf("alarm :%d\n", ret);
     return 0;
 }

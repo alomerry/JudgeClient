@@ -32,7 +32,7 @@ void judge_solution();
 
 int main(int argc, char **argv)
 {
-    testMysql();;
+    // testMysql();
 
     int i;
     for (i = 0; i < argc; i++)
@@ -41,7 +41,7 @@ int main(int argc, char **argv)
     }
     // system("cd ../ && mkdir 6666");
     // execute_cmd("test %s %d", "content", 16);
-    // compire();
+    compire();
     /*
     pid_t pidApp = fork();
     if (pidApp == 0) //子进程
@@ -125,19 +125,20 @@ int compire()
     int pid;
 
     pid = fork();
-    char *arg[] = {"g++", "test.cc", "-o", "alarm", NULL};
+    char *arg[] = {"g++", "testsa.cc", "-o", "alarm", NULL};
     if (pid < 0)
     {
         cout << "错误" << endl;
     }
     else if (pid == 0) //子进程
     {
-        cout<<"子函数执行！"<<endl;
+        cout << "子函数执行！" << endl;
         if (execvp("g++", arg) == -1)
         {
-            printf("错误代码=%d\n", errno);
-            char *mesg = strerror(errno);
-            printf("错误原因:%s\n", mesg);
+            printf("编译错误");
+            // printf("错误代码=%d\n", errno);
+            // char *mesg = strerror(errno);
+            // printf("错误原因:%s\n", mesg);
         }
         else
         {
@@ -150,7 +151,7 @@ int compire()
     {
         sleep(1);
         int status;
-        printf_wrongMessage();
+        // printf_wrongMessage();
         waitpid(pid, &status, 0);
         if (WIFEXITED(status) != 0)
         {
