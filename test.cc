@@ -4,7 +4,7 @@ int main()
 {
 
     int a = 0;
-    cout << "666";
+    // cout << "666";
     // cin >> a;
     // cout << a << endl<< endl;
     // system("echo 666 >> error.out");

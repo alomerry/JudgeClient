@@ -15,7 +15,7 @@
 #include <wait.h>
 using namespace std;
 
-extern int errno;
+// extern int errno;
 
 MYSQL *STDCALL mysql_init(MYSQL *mysql);
 MYSQL *STDCALL mysql_real_connect(MYSQL *mysql, const char *host, const char *user, const char *passwd,
@@ -23,7 +23,7 @@ MYSQL *STDCALL mysql_real_connect(MYSQL *mysql, const char *host, const char *us
                                   unsigned long *clientflag);
 void testMysql();
 int execute_cmd(const char *fmt, ...);
-int compire();
+int compile();
 void run_solution();
 void watch_solution(pid_t pidApp);
 void printf_wrongMessage();
@@ -31,6 +31,7 @@ void printf_wrongMessage(int status);
 int get_proc_status(int pid, const char *mark);
 int compare(const char *file1, const char *file2);
 void judge_solution();
+long get_file_size(const char *filename);
 
 int main(int argc, char **argv)
 {
@@ -43,7 +44,7 @@ int main(int argc, char **argv)
     }
     // system("cd ../ && mkdir 6666");
     // execute_cmd("test %s %d", "content", 16);
-    compire();
+    int comile_flag = compile();
     /*
     pid_t pidApp = fork();
     if (pidApp == 0) //子进程
@@ -122,13 +123,13 @@ int execute_cmd(const char *fmt, ...)
 /**
  * 编译
  */
-int compire()
+int compile()
 {
     int pid;
 
     // freopen("log/error.out", "w", stdout);
-    // char *arg[] = {"g++", "test.cc", "-o", "test", NULL};
-    char *arg[] = {"./alarm", NULL};
+    char *arg[] = {"g++", "test.cc", "-o", "test", NULL};
+    // char *arg[] = {"./alarm", NULL};
     pid = fork();
     if (pid < 0)
     {
@@ -137,31 +138,31 @@ int compire()
     else if (pid == 0) //子进程
     {
         cout << "子函数执行！" << endl;
-        if (execvp("./alarm", arg) == -1)
+        freopen("log/ce.txt", "w", stderr);
+        if (execvp("g++", arg) == -1)
         {
             printf("编译错误");
             // printf("错误代码=%d\n", errno);
             // char *mesg = strerror(errno);
             // printf("错误原因:%s\n", mesg);
         }
-        cout << "子函数执行完毕！" << endl;
-        exit(666);
     }
     else //父进程
     {
-        sleep(1);
-        int status;
-        // printf_wrongMessage();
+        int status = 0;
         waitpid(pid, &status, 0);
-        if (WIFEXITED(status) != 0)
-        {
-            cout << "正常结束：返回值为：" << WEXITSTATUS(status) << endl;
-        }
-        else
-        {
-            cout << "非正常结束";
-            printf_wrongMessage();
-        }
+        status = get_file_size("log/ce.txt");
+        printf("size:%d\n", status);
+        // if (WIFEXITED(status) != 0)
+        // {
+        //     cout << "正常结束：返回值为：" << WEXITSTATUS(status) << endl;
+        // }
+        // else
+        // {
+        //     cout << "非正常结束";
+        //     printf_wrongMessage();
+        // }
+        return status;
     }
 }
 void printf_wrongMessage(int status)
