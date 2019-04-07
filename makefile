@@ -1,4 +1,4 @@
-all: clean Client Alarm #Test
+all: clean Client #Alarm #Test
 Test:
 	g++ -o test test.cc -std=c++11
 Alarm:

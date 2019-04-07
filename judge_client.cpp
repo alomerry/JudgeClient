@@ -1,4 +1,6 @@
 #define BUFFER_SIZE 256
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/resource.h>
 #include <sys/ptrace.h>
 #include <mysql/mysql.h>
@@ -124,8 +126,10 @@ int compire()
 {
     int pid;
 
+    // freopen("log/error.out", "w", stdout);
+    char *arg[] = {"g++", "test.cc", "-o", "test", NULL};
+    // char *arg[] = {"./alarm", NULL};
     pid = fork();
-    char *arg[] = {"g++", "testsa.cc", "-o", "alarm", NULL};
     if (pid < 0)
     {
         cout << "错误" << endl;
@@ -133,16 +137,12 @@ int compire()
     else if (pid == 0) //子进程
     {
         cout << "子函数执行！" << endl;
-        if (execvp("g++", arg) == -1)
+        if (execvp("./alarm", arg) == -1)
         {
             printf("编译错误");
             // printf("错误代码=%d\n", errno);
             // char *mesg = strerror(errno);
             // printf("错误原因:%s\n", mesg);
-        }
-        else
-        {
-            cout << "无错误!" << endl;
         }
         cout << "子函数执行完毕！" << endl;
         return -1;
@@ -285,4 +285,18 @@ int get_proc_status(pid_t pid, const char *mark)
     if (file)
         fclose(file);
     return 0;
+}
+/**
+ * 获取制定文件的大小 
+ */
+long get_file_size(const char *filename)
+{
+	struct stat f_stat;
+
+	if (stat(filename, &f_stat) == -1)
+	{
+		return 0;
+	}
+
+	return (long)f_stat.st_size;
 }

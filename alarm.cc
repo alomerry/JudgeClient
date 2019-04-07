@@ -5,9 +5,9 @@
 int main(void)
 {
     // alarm(5);
-    int ret = 10;
-    sleep(3);
+    int ret[2];
+    ret[3] = 10;
     // ret = alarm(1);
-    printf("alarm :%d\n", ret);
-    return 0;
+    printf("alarm:hello！\n");
+    return 666;
 }
