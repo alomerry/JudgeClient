@@ -1,4 +1,4 @@
-#define BUFFER_SIZE 256
+#define BUFF_SIZE 512
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/resource.h>
@@ -17,74 +17,28 @@ using namespace std;
 
 // extern int errno;
 
-MYSQL *STDCALL mysql_init(MYSQL *mysql);
-MYSQL *STDCALL mysql_real_connect(MYSQL *mysql, const char *host, const char *user, const char *passwd,
-                                  const char *db, unsigned int *port, const char *unix_socket,
-                                  unsigned long *clientflag);
-void testMysql();
-int execute_cmd(const char *fmt, ...);
-int compile();
-void run_solution();
-void watch_solution(pid_t pidApp);
-void printf_wrongMessage();
-void printf_wrongMessage(int status);
-int get_proc_status(int pid, const char *mark);
-int compare(const char *file1, const char *file2);
-void judge_solution();
-long get_file_size(const char *filename);
+MYSQL *conn;
+static char host_name[BUFF_SIZE];
+static char user_name[BUFF_SIZE];
+static char password[BUFF_SIZE];
+static char db_name[BUFF_SIZE];
+static int port_number;
 
-int main(int argc, char **argv)
-{
-    // testMysql();
-
-    int i;
-    for (i = 0; i < argc; i++)
-    {
-        printf("Argument %d is %s \n", i, argv[i]);
-    }
-    // system("cd ../ && mkdir 6666");
-    // execute_cmd("test %s %d", "content", 16);
-    int comile_flag = compile();
-    if (comile_flag != 0)
-    {
-        //编译错误，更新数据库并退出
-    }
-    else
-    {
-        //更新数据库
-    }
-    /*
-    1.读取输入输出文件（下载或者访问）
-    2.设置时间限制，内存限制
-    3. (1)子进程运行程序
-       (2)父进程等待结束后判断程序输出和正确结果的异同
-    4.更新结果
-    */
-    /*
-    pid_t pidApp = fork();
-    if (pidApp == 0) //子进程
-    {
-        run_solution();
-    }
-    else
-    {
-        cout << "pid = " << pidApp << endl;
-        sleep(2);
-        watch_solution(pidApp);
-        judge_solution();
-    }
-    */
-
-    return 0;
-}
 /**
  * 通过C API调用mysql
  */
-void testMysql()
+void init_mysql()
 {
-    MYSQL mysql;
-    mysql_init(&mysql);
-    mysql_real_connect(&mysql, "rm-bp14419zgc8077s9hjo.mysql.rds.aliyuncs.com", "mo", "WjC120211", "online_judge", 3306, NULL, 0);
+    conn = mysql_init(NULL);
+    const char timeout = 30;
+    //配置连接时间
+    mysql_options(conn, MYSQL_OPT_CONNECT_TIMEOUT, &timeout);
+
+    //mysql_real_connect(conn, "rm-bp14419zgc8077s9hjo.mysql.rds.aliyuncs.com", "mo", "WjC120211", "online_judge", 3306, NULL, 0)
+    if (mysql_real_connect(conn, host_name, user_name, password, db_name, port_number, NULL, 0))
+    {
+    }
+
     string sql = "select username from users;";
 
     mysql_query(&mysql, sql.c_str());
@@ -315,4 +269,57 @@ long get_file_size(const char *filename)
         return 0;
     }
     return (long)f_stat.st_size;
+}
+
+void get_solution_info_MySQL(int solution_id)
+{
+    char sql[BUFFER_SIZE];
+    // get the problem id and user id from Table:solution
+    sprintf(sql, "select problem_id, user_id, language FROM solution where solution_id=%d", solution_id);
+    mysql_real_query(conn, sql, strlen(sql));
+}
+
+int main(int argc, char **argv)
+{
+    // testMysql();
+
+    int i;
+    for (i = 0; i < argc; i++)
+    {
+        printf("Argument %d is %s \n", i, argv[i]);
+    }
+    // system("cd ../ && mkdir 6666");
+    // execute_cmd("test %s %d", "content", 16);
+    int comile_flag = compile();
+    if (comile_flag != 0)
+    {
+        //编译错误，更新数据库并退出
+    }
+    else
+    {
+        //更新数据库
+    }
+    /*
+    1.读取输入输出文件（下载或者访问）
+    2.设置时间限制，内存限制
+    3. (1)子进程运行程序
+       (2)父进程等待结束后判断程序输出和正确结果的异同
+    4.更新结果
+    */
+    /*
+    pid_t pidApp = fork();
+    if (pidApp == 0) //子进程
+    {
+        run_solution();
+    }
+    else
+    {
+        cout << "pid = " << pidApp << endl;
+        sleep(2);
+        watch_solution(pidApp);
+        judge_solution();
+    }
+    */
+
+    return 0;
 }
