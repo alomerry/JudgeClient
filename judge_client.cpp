@@ -22,12 +22,125 @@ static char host_name[BUFF_SIZE];
 static char user_name[BUFF_SIZE];
 static char password[BUFF_SIZE];
 static char db_name[BUFF_SIZE];
+static char oj_home[BUFF_SIZE];
 static int port_number;
+
+//清除字符串前后的空白
+void trim(char *c)
+{
+    char buf[BUFF_SIZE];
+    char *start, *end;
+    strcpy(buf, c);
+    start = buf;
+    while (isspace(*start))
+        start++;
+    end = start;
+    while (!isspace(*end))
+        end++;
+    *end = '\0';
+    strcpy(c, start);
+}
+
+//定位到 ‘=’ 后面
+int after_equal(char *c)
+{
+    int i = 0;
+    for (; c[i] != '\0' && c[i] != '='; i++)
+        ;
+    return ++i;
+}
+
+//读取config中指定key的(String)value
+bool read_buf(char *buf, const char *key, char *value)
+{
+    if (strncmp(buf, key, strlen(key)) == 0)
+    {
+        strcpy(value, buf + after_equal(buf));
+        trim(value);
+        return 1;
+    }
+    return 0;
+}
+
+//读取config中指定key的(Int)value
+void read_int(char *buf, const char *key, int *value)
+{
+    char buf2[BUFF_SIZE];
+    if (read_buf(buf, key, buf2))
+    {
+        sscanf(buf2, "%d", value);
+    }
+}
+
+//初始化mysql配置
+void init_mysql_conf()
+{
+    FILE *fp = NULL;
+    char buf[BUFF_SIZE];
+    host_name[0] = 0;
+    user_name[0] = 0;
+    password[0] = 0;
+    db_name[0] = 0;
+    port_number = 3306;
+    // sprintf(buf, "%s/etc/judge.conf", oj_home);
+    fp = fopen("./etc/judge.conf", "r");
+    if (fp != NULL)
+    {
+        while (fgets(buf, BUFF_SIZE - 1, fp))
+        {
+            read_buf(buf, "OJ_HOST_NAME", host_name);
+            read_buf(buf, "OJ_USER_NAME", user_name);
+            read_buf(buf, "OJ_PASSWORD", password);
+            read_buf(buf, "OJ_DB_NAME", db_name);
+            read_int(buf, "OJ_PORT_NUMBER", &port_number);
+        }
+        fclose(fp);
+    }
+}
+
+int main(int argc, char **argv)
+{
+    init_mysql_conf();
+    // system("cd ../ && mkdir 6666");
+    // execute_cmd("test %s %d", "content", 16);
+    // int comile_flag = compile();
+    // if (comile_flag != 0)
+    {
+        //编译错误，更新数据库并退出
+    }
+    // else
+    {
+        //更新数据库
+    }
+    /*
+    1.读取输入输出文件（下载或者访问）
+    2.设置时间限制，内存限制
+    3. (1)子进程运行程序
+       (2)父进程等待结束后判断程序输出和正确结果的异同
+    4.更新结果
+    */
+    /*
+    pid_t pidApp = fork();
+    if (pidApp == 0) //子进程
+    {
+        run_solution();
+    }
+    else
+    {
+        cout << "pid = " << pidApp << endl;
+        sleep(2);
+        watch_solution(pidApp);
+        judge_solution();
+    }
+    */
+
+    return 0;
+}
 
 /**
  * 通过C API调用mysql
  */
-void init_mysql()
+void init_mysql_conn()
 {
     conn = mysql_init(NULL);
     const char timeout = 30;
@@ -41,9 +154,9 @@ void init_mysql()
 
     string sql = "select username from users;";
 
-    mysql_query(&mysql, sql.c_str());
+    mysql_query(conn, sql.c_str());
 
-    MYSQL_RES *res = mysql_store_result(&mysql);
+    MYSQL_RES *res = mysql_store_result(conn);
 
     int num_fields = mysql_num_fields(res);
 
@@ -71,8 +184,8 @@ void init_mysql()
  */
 int execute_cmd(const char *fmt, ...)
 {
-    char cmd[BUFFER_SIZE];
-    // fill(cmd, cmd + BUFFER_SIZE, '-');
+    char cmd[BUFF_SIZE];
+    // fill(cmd, cmd + BUFF_SIZE, '-');
     int ret = 0;
     va_list ap;
 
@@ -80,7 +193,7 @@ int execute_cmd(const char *fmt, ...)
     vsprintf(cmd, fmt, ap);
     ret = system("echo 666");
     int i = 0;
-    while (cmd[i] != '\0' && i < BUFFER_SIZE)
+    while (cmd[i] != '\0' && i < BUFF_SIZE)
     {
         cout << cmd[i];
         i++;
@@ -236,14 +349,14 @@ int compare(const char *file1, const char *file2)
 int get_proc_status(pid_t pid, const char *mark)
 {
     FILE *file;
-    char fileName[BUFFER_SIZE], buf[BUFFER_SIZE];
+    char fileName[BUFF_SIZE], buf[BUFF_SIZE];
 
     sprintf(fileName, "/proc/%d/status", pid);
     cout << "fileName" << fileName << endl;
     file = fopen(fileName, "r");
     int len = strlen(mark), res;
     cout << "文件打开成功" << file << endl;
-    while (file && fgets(buf, BUFFER_SIZE - 1, file))
+    while (file && fgets(buf, BUFF_SIZE - 1, file))
     {
         if (strncmp(mark, buf, len) == 0)
         {
@@ -273,53 +386,8 @@ long get_file_size(const char *filename)
 
 void get_solution_info_MySQL(int solution_id)
 {
-    char sql[BUFFER_SIZE];
+    char sql[BUFF_SIZE];
     // get the problem id and user id from Table:solution
     sprintf(sql, "select problem_id, user_id, language FROM solution where solution_id=%d", solution_id);
     mysql_real_query(conn, sql, strlen(sql));
-}
-
-int main(int argc, char **argv)
-{
-    // testMysql();
-
-    int i;
-    for (i = 0; i < argc; i++)
-    {
-        printf("Argument %d is %s \n", i, argv[i]);
-    }
-    // system("cd ../ && mkdir 6666");
-    // execute_cmd("test %s %d", "content", 16);
-    int comile_flag = compile();
-    if (comile_flag != 0)
-    {
-        //编译错误，更新数据库并退出
-    }
-    else
-    {
-        //更新数据库
-    }
-    /*
-    1.读取输入输出文件（下载或者访问）
-    2.设置时间限制，内存限制
-    3. (1)子进程运行程序
-       (2)父进程等待结束后判断程序输出和正确结果的异同
-    4.更新结果
-    */
-    /*
-    pid_t pidApp = fork();
-    if (pidApp == 0) //子进程
-    {
-        run_solution();
-    }
-    else
-    {
-        cout << "pid = " << pidApp << endl;
-        sleep(2);
-        watch_solution(pidApp);
-        judge_solution();
-    }
-    */
-
-    return 0;
 }
