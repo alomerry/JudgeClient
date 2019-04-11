@@ -40,7 +40,6 @@ void trim(char *c)
     *end = '\0';
     strcpy(c, start);
 }
-
 //定位到 ‘=’ 后面
 int after_equal(char *c)
 {
@@ -49,7 +48,6 @@ int after_equal(char *c)
         ;
     return ++i;
 }
-
 //读取config中指定key的(String)value
 bool read_buf(char *buf, const char *key, char *value)
 {
@@ -61,7 +59,6 @@ bool read_buf(char *buf, const char *key, char *value)
     }
     return 0;
 }
-
 //读取config中指定key的(Int)value
 void read_int(char *buf, const char *key, int *value)
 {
@@ -71,7 +68,6 @@ void read_int(char *buf, const char *key, int *value)
         sscanf(buf2, "%d", value);
     }
 }
-
 //初始化mysql配置
 void init_mysql_conf()
 {
@@ -97,10 +93,85 @@ void init_mysql_conf()
         fclose(fp);
     }
 }
+//初始化mysql连接
+int init_mysql_conn()
+{
+    conn = mysql_init(NULL);
+    const char timeout = 30;
+    //配置连接时间
+    mysql_options(conn, MYSQL_OPT_CONNECT_TIMEOUT, &timeout);
 
+    if (!mysql_real_connect(conn, host_name, user_name, password, db_name, port_number, NULL, 0))
+    {
+        return 0;
+    }
+    return 1;
+}
+//获取solution的信息
+void get_solution_info_mysql(char *solution_id, int &problem_id, int &user_id,
+                             int &lang)
+{
+    MYSQL_RES *res;
+    MYSQL_ROW row;
+
+    char sql[BUFF_SIZE];
+    sprintf(sql, "select problem_id, user_id, language from solution where solution_id=%s", solution_id);
+
+    printf("%s\n", sql);
+
+    mysql_real_query(conn, sql, strlen(sql));
+    res = mysql_store_result(conn);
+    row = mysql_fetch_row(res);
+    if (mysql_num_rows(res) == 0)
+    {
+        //no solution
+        exit(1);
+    }
+    problem_id = atoi(row[0]);
+    user_id = atoi(row[1]);
+    lang = atoi(row[2]);
+    mysql_free_result(res);
+}
+//初始化参数
+void init_parameters(int argc, char **argv, char *solution_id)
+{
+    if (argc < 2)
+    {
+        //error
+        exit(1);
+    }
+    solution_id = argv[1];
+}
+//在judge.cc中调用参数
+//runidstr  : solution_id 的字符串 参数1
+//buf		: clientid   也就是进程id字符串
+//oj_home	: /home/judge
+//execl("/usr/bin/judge_client", "/usr/bin/judge_client", runidstr, buf,
+//				oj_home, (char *) NULL);
+//argv[0] 指向程序运行的全路径名
+//argv[1] 指向在DOS命令行中执行程序名后的第一个字符串
+//argv[2] 指向执行程序名后的第二个字符串
 int main(int argc, char **argv)
 {
+    int problem_id = 0, user_id = 0, lang = 0;
+    char solution_id[BUFF_SIZE];
+
+    init_parameters(argc, argv, solution_id);
+
+    printf("solution_id:%s\n", solution_id);
+    
     init_mysql_conf();
+
+    if (!init_mysql_conn())
+    {
+        exit(0);
+    }
+    printf("finishing!\n");
+
+    get_solution_info_mysql(solution_id, problem_id, user_id, lang);
+
+    printf("finished!\n");
+    printf("problem_id:%d,user_id:%d\n", problem_id, user_id);
     // system("cd ../ && mkdir 6666");
     // execute_cmd("test %s %d", "content", 16);
     // int comile_flag = compile();
@@ -133,51 +204,8 @@ int main(int argc, char **argv)
         judge_solution();
     }
     */
-
+    mysql_close(conn);
     return 0;
-}
-
-/**
- * 通过C API调用mysql
- */
-void init_mysql_conn()
-{
-    conn = mysql_init(NULL);
-    const char timeout = 30;
-    //配置连接时间
-    mysql_options(conn, MYSQL_OPT_CONNECT_TIMEOUT, &timeout);
-
-    //mysql_real_connect(conn, "rm-bp14419zgc8077s9hjo.mysql.rds.aliyuncs.com", "mo", "WjC120211", "online_judge", 3306, NULL, 0)
-    if (mysql_real_connect(conn, host_name, user_name, password, db_name, port_number, NULL, 0))
-    {
-    }
-
-    string sql = "select username from users;";
-
-    mysql_query(conn, sql.c_str());
-
-    MYSQL_RES *res = mysql_store_result(conn);
-
-    int num_fields = mysql_num_fields(res);
-
-    MYSQL_FIELD *fields = mysql_fetch_fields(res);
-
-    while (MYSQL_ROW row = mysql_fetch_row(res)) //获取整条数据内容
-    {
-        for (int i = 0; i < num_fields; i++)
-        {
-            if (NULL == row[i])
-            {
-                cout << " NULL";
-            }
-            else
-            {
-                cout << " " << row[i];
-            }
-        }
-        cout << endl;
-    }
-    mysql_close(&mysql);
 }
 /**
  * 执行cmd命令
@@ -201,6 +229,19 @@ int execute_cmd(const char *fmt, ...)
     printf("\n");
     va_end(ap);
     return ret;
+}
+/**
+ * 获取制定文件的大小 
+ */
+long get_file_size(const char *filename)
+{
+    struct stat f_stat;
+
+    if (stat(filename, &f_stat) == -1)
+    {
+        return 0;
+    }
+    return (long)f_stat.st_size;
 }
 /**
  * 编译
@@ -292,18 +333,6 @@ void watch_solution(pid_t pidApp)
     }
     //ptrace(PTRACE_KILL, pidApp, NULL, NULL); //杀死子进程，停止执行
 }
-void judge_solution()
-{
-    int res = compare("data.in", "user.out");
-    if (res)
-    {
-        cout << "答案正确" << endl;
-    }
-    else
-    {
-        cout << "答案错误" << endl;
-    }
-}
 int compare(const char *file1, const char *file2)
 {
     FILE *fp1, *fp2;
@@ -346,6 +375,18 @@ int compare(const char *file1, const char *file2)
         return 0;
     }
 }
+void judge_solution()
+{
+    int res = compare("./data/data.in", "./data/user.out");
+    if (res)
+    {
+        cout << "答案正确" << endl;
+    }
+    else
+    {
+        cout << "答案错误" << endl;
+    }
+}
 int get_proc_status(pid_t pid, const char *mark)
 {
     FILE *file;
@@ -369,25 +410,4 @@ int get_proc_status(pid_t pid, const char *mark)
     if (file)
         fclose(file);
     return 0;
-}
-/**
- * 获取制定文件的大小 
- */
-long get_file_size(const char *filename)
-{
-    struct stat f_stat;
-
-    if (stat(filename, &f_stat) == -1)
-    {
-        return 0;
-    }
-    return (long)f_stat.st_size;
-}
-
-void get_solution_info_MySQL(int solution_id)
-{
-    char sql[BUFF_SIZE];
-    // get the problem id and user id from Table:solution
-    sprintf(sql, "select problem_id, user_id, language FROM solution where solution_id=%d", solution_id);
-    mysql_real_query(conn, sql, strlen(sql));
 }
