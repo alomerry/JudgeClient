@@ -4,6 +4,10 @@
         "ostream": "cpp",
         "*.tcc": "cpp",
         "new": "cpp",
-        "string": "cpp"
+        "string": "cpp",
+        "array": "cpp",
+        "deque": "cpp",
+        "unordered_map": "cpp",
+        "vector": "cpp"
     }
 }
