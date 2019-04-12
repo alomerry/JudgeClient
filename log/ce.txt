@@ -1,7 +1,0 @@
-judge/main.cpp: In function ‘int main()’:
-judge/main.cpp:5:3: error: ‘cout’ was not declared in this scope
-   cout << "666" << endl;
-   ^
-judge/main.cpp:5:20: error: ‘endl’ was not declared in this scope
-   cout << "666" << endl;
-                    ^
