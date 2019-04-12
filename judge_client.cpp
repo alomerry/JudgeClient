@@ -378,6 +378,7 @@ int main(int argc, char **argv)
     3. (1)子进程运行程序
        (2)父进程等待结束后判断程序输出和正确结果的异同
     4.更新结果
+    
     */
     /*
     pid_t pidApp = fork();
