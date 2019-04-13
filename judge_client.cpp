@@ -3,7 +3,9 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/resource.h>
-// #include <sys/ptrace.h>
+#include <sys/types.h>
+#include <sys/user.h>
+#include <sys/ptrace.h>
 #include <mysql/mysql.h>
 // #include <algorithm>
 #include <iostream>
@@ -299,6 +301,7 @@ void add_ce_info(char *solution_id)
     }
     fclose(fp);
 }
+//更新solution信息
 void update_solution_info(char *solution_id, int result, int time, int memory)
 {
     char sql[BUFF_SIZE];
@@ -309,6 +312,7 @@ void update_solution_info(char *solution_id, int result, int time, int memory)
         printf("..update failed! %s\n", mysql_error(conn));
     }
 }
+//更新用户提交数
 void update_user_submition(int user_id)
 {
     char sql[BUFF_SIZE];
@@ -318,6 +322,7 @@ void update_user_submition(int user_id)
         printf("..update failed! %s\n", mysql_error(conn));
     }
 }
+//更新题目提交数
 void update_problem_submition(int problem_id)
 {
     char sql[BUFF_SIZE];
@@ -326,6 +331,32 @@ void update_problem_submition(int problem_id)
     {
         printf("..update failed! %s\n", mysql_error(conn));
     }
+}
+//执行编译结果
+void run_solution()
+{
+    freopen("data/data.in", "r", stdin);
+    freopen("data/user.out", "w", stdout);
+    freopen("log/error.out", "a+", stderr);
+
+    ptrace(PTRACE_TRACEME, 0, NULL, NULL);
+    struct rlimit LIM;
+    LIM.rlim_max = 60;
+    LIM.rlim_cur = 60;
+    setrlimit(RLIMIT_CPU, &LIM);
+    alarm(60);
+    LIM.rlim_max = 100 * STD_MB;
+    LIM.rlim_cur = 100 * STD_MB;
+    setrlimit(RLIMIT_FSIZE, &LIM);
+    LIM.rlim_max = STD_MB << 10;
+    LIM.rlim_cur = STD_MB << 10;
+    setrlimit(RLIMIT_AS, &LIM);
+
+    if (execl("./main", "./main", (char *)NULL) != -1)
+    {
+        exit(1);
+    }
+    exit(0);
 }
 int main(int argc, char **argv)
 {
@@ -378,9 +409,8 @@ int main(int argc, char **argv)
     3. (1)子进程运行程序
        (2)父进程等待结束后判断程序输出和正确结果的异同
     4.更新结果
-    
+
     */
-    /*
     pid_t pidApp = fork();
     if (pidApp == 0) //子进程
     {
@@ -388,12 +418,11 @@ int main(int argc, char **argv)
     }
     else
     {
-        cout << "pid = " << pidApp << endl;
-        sleep(2);
-        watch_solution(pidApp);
-        judge_solution();
+        // cout << "pid = " << pidApp << endl;
+        // sleep(2);
+        // watch_solution(pidApp);
+        // judge_solution();
     }
-    */
     mysql_close(conn);
     return 0;
 }
@@ -410,17 +439,7 @@ void printf_wrongMessage()
     char *mesg = strerror(errno);
     printf("错误原因:%s\n", mesg);
 }
-/**
- * 执行编译结果
- */
-void run_solution()
-{
-    freopen("user.out", "w", stdout);
-    freopen("data.in", "r", stdin);
-    freopen("error.out", "a+", stderr);
-    //ptrace(PTRACE_TRACEME, 0, NULL, NULL);
-    execl("./test", "./test", (char *)NULL);
-}
+
 /**
  * 查看运行结
  */
