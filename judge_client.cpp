@@ -22,12 +22,16 @@ using namespace std;
 static const char lang_txt[4][8] = {"java", "c", "cpp", "py"};
 
 MYSQL *conn;
+static int Mode = 0;
 static char host_name[BUFF_SIZE];
 static char user_name[BUFF_SIZE];
 static char password[BUFF_SIZE];
 static char db_name[BUFF_SIZE];
 static char oj_home[BUFF_SIZE];
 static int port_number;
+
+#define DEBUG 1
+#define BUILD 0
 
 #define OJ_WT0 0 //Pending:等待中
 #define OJ_WT1 1 //Waiting:排队中
@@ -112,6 +116,11 @@ void init_mysql_conf()
         }
         fclose(fp);
     }
+
+    if (Mode == DEBUG) //Debug Mode
+    {
+        printf("初始化数据库中......\n\thost_name(%s)\n\tuser_name(%s)\n\tdb_name(%s)\n\t初始化完毕。\n", host_name, user_name, db_name);
+    }
 }
 //初始化mysql连接
 int init_mysql_conn()
@@ -121,15 +130,27 @@ int init_mysql_conn()
     //配置连接时间
     mysql_options(conn, MYSQL_OPT_CONNECT_TIMEOUT, &timeout);
 
+    if (Mode == DEBUG) //Debug Mode
+    {
+        printf("初始化数据库连接中......\n");
+    }
+
     if (!mysql_real_connect(conn, host_name, user_name, password, db_name, port_number, NULL, 0))
     {
+        if (Mode == DEBUG) //Debug Mode
+        {
+            printf("\t初始化失败。\n");
+        }
         return 0;
+    }
+    if (Mode == DEBUG) //Debug Mode
+    {
+        printf("\t初始化成功。\n");
     }
     return 1;
 }
 //获取solution的信息
-void get_solution_info_mysql(char *solution_id, int &problem_id, int &user_id,
-                             int &lang)
+void get_solution_info_mysql(char *solution_id, int &problem_id, int &user_id, int &lang)
 {
     MYSQL_RES *res;
     MYSQL_ROW row;
@@ -137,19 +158,32 @@ void get_solution_info_mysql(char *solution_id, int &problem_id, int &user_id,
     char sql[BUFF_SIZE];
 
     sprintf(sql, "select problem_id, user_id, language from solution where solution_id='%s'", solution_id);
-    printf("sql:%s\n", sql);
+
+    if (Mode == DEBUG) //Debug Mode
+    {
+        printf("正在查询数据库，获取[solution]表信息\n\t%s\n", sql);
+    }
 
     mysql_real_query(conn, sql, strlen(sql));
     res = mysql_store_result(conn);
     row = mysql_fetch_row(res);
     if (mysql_num_rows(res) == 0)
     {
-        puts("solution不存在!");
+        if (Mode == DEBUG) //Debug Mode
+        {
+            printf("\tsolution不存在!\n");
+        }
         exit(1);
     }
     problem_id = atoi(row[0]);
     user_id = atoi(row[1]);
     lang = atoi(row[2]);
+
+    if (Mode == DEBUG) //Debug Mode
+    {
+        printf("\t查询成功。\n\tproblem_id(%d)\n\tuser_id(%d)\n\tlang(%d)\n", problem_id, user_id, lang);
+    }
+
     mysql_free_result(res);
 }
 //读取源码生成main.c/main.cpp
@@ -161,12 +195,21 @@ void get_code_mysql(char *solution_id, int lang)
     char sql[BUFF_SIZE], code_path[BUFF_SIZE];
 
     sprintf(sql, "select source from source_code where solution_id='%s'", solution_id);
+
+    if (Mode == DEBUG) //Debug Mode
+    {
+        printf("正在查询数据库，获取[source[表信息\n\t%s\n", sql);
+    }
+
     mysql_real_query(conn, sql, strlen(sql));
     res = mysql_store_result(conn);
     row = mysql_fetch_row(res);
     if (mysql_num_rows(res) == 0)
     {
-        puts("solution不存在!");
+        if (Mode == DEBUG) //Debug Mode
+        {
+            printf("\tsource不存在!\n");
+        }
         exit(1);
     }
 
@@ -177,18 +220,36 @@ void get_code_mysql(char *solution_id, int lang)
 
     mysql_free_result(res);
 
+    if (Mode == DEBUG) //Debug Mode
+    {
+        printf("\t查询成功。\n");
+    }
+
     fclose(fp_code);
 }
-//初始化参数
+/**
+ * 初始化参数
+ * argv[0]: judge_client
+ * argv[1]: solution_id
+ * argv[2]: Mode(DEBUG/BUILD)
+ */
 void init_parameters(int argc, char **argv, char *&solution_id)
 {
-    if (argc < 2)
+    if (argc < 3)
     {
-        //error
-        puts("init_parameters: 参数错误，程序退出！");
+        if (Mode == DEBUG) //Debug Mode
+        {
+            printf("初始化参数中......\n\t参数错误，程序退出！\n");
+        }
         exit(1);
     }
     solution_id = argv[1];
+    Mode = atoi(argv[2]);
+
+    if (Mode == DEBUG) //Debug Mode
+    {
+        printf("初始化参数中......\n\tsolution id(%s)\n\t初始化完毕。\n", solution_id);
+    }
 }
 
 // 获取制定文件的大小
@@ -224,10 +285,18 @@ int compile(int lang)
         LIM.rlim_cur = STD_MB << 10;
         setrlimit(RLIMIT_AS, &LIM);
 
+        if (Mode == DEBUG) //Debug Mode
+        {
+            printf("编译中.....\n");
+        }
+
         freopen("log/ce.txt", "w", stderr);
         if (execvp("g++", compile_cpp) == -1)
         {
-            printf("编译错误");
+            if (Mode == DEBUG) //Debug Mode
+            {
+                printf("\t调用g++编译器错误\n");
+            }
             exit(1);
         }
     }
@@ -238,10 +307,25 @@ int compile(int lang)
         if (WIFEXITED(status) != 0)
         {
             status = get_file_size("log/ce.txt");
+            if (Mode == DEBUG) //Debug Mode
+            {
+                if (status == 0)
+                {
+                    printf("\t编译成功。\n");
+                }
+                else
+                {
+                    printf("\t编译错误。\n");
+                }
+            }
             return status;
         }
         else
         {
+            if (Mode == DEBUG) //Debug Mode
+            {
+                printf("\t编译错误。\n");
+            }
             return -1;
         }
     }
@@ -283,6 +367,12 @@ void add_ce_info(char *solution_id)
     char result[BUFF_SIZE * 10];
 
     snprintf(sql, sizeof(sql), "delete from compile_info where solution_id='%s')", solution_id);
+
+    if (Mode == DEBUG) //Debug Mode
+    {
+        printf("正在操作数据库，删除[compile_info]表信息\n\t%s\n", sql);
+    }
+
     if (mysql_real_query(conn, sql, strlen(sql)))
     {
         printf("%s\n", mysql_error(conn));
@@ -295,10 +385,16 @@ void add_ce_info(char *solution_id)
     }
     snprintf(sql, sizeof(sql),
              "insert into compile_info (solution_id,error) values ('%s','%s')", solution_id, result);
+    if (Mode == DEBUG) //Debug Mode
+    {
+        printf("正在操作数据库，插入[compile_info]表信息\n\t%s\n", sql);
+    }
+
     if (mysql_real_query(conn, sql, strlen(sql)))
     {
         printf("%s\n", mysql_error(conn));
     }
+
     fclose(fp);
 }
 //更新solution信息
@@ -307,6 +403,11 @@ void update_solution_info(char *solution_id, int result, int time, int memory)
     char sql[BUFF_SIZE];
     sprintf(sql,
             "update solution set result=%d,time=%d,memory=%d where solution_id='%s'", result, time, memory, solution_id);
+    if (Mode == DEBUG) //Debug Mode
+    {
+        printf("正在更新数据库，获取solution表信息\n\t%s\n", sql);
+    }
+
     if (mysql_real_query(conn, sql, strlen(sql)))
     {
         printf("..update failed! %s\n", mysql_error(conn));
@@ -317,6 +418,11 @@ void update_user_submition(int user_id)
 {
     char sql[BUFF_SIZE];
     sprintf(sql, "update users set submit=submit+1 where user_id = %d", user_id);
+    if (Mode == DEBUG) //Debug Mode
+    {
+        printf("正在更新数据库，获取users表信息\n%s\n", sql);
+    }
+
     if (mysql_real_query(conn, sql, strlen(sql)))
     {
         printf("..update failed! %s\n", mysql_error(conn));
@@ -327,36 +433,46 @@ void update_problem_submition(int problem_id)
 {
     char sql[BUFF_SIZE];
     sprintf(sql, "update problems set submit=submit+1 where problem_id = %d", problem_id);
+    if (Mode == DEBUG) //Debug Mode
+    {
+        printf("正在更新数据库，获取problems表信息\n%s\n", sql);
+    }
+
     if (mysql_real_query(conn, sql, strlen(sql)))
     {
         printf("..update failed! %s\n", mysql_error(conn));
     }
 }
 //执行编译结果
-void run_solution()
+void run_solution(int lang, int time_limit, int memery_limit)
 {
-    puts("run_solution:执行编译结果");
     freopen("log/error.out", "a+", stderr);
     freopen("data/data.in", "r", stdin);
     freopen("data/user.out", "w", stdout);
 
+    //请求父进程追踪
     ptrace(PTRACE_TRACEME, 0, NULL, NULL);
+
+    //设置进程时钟片使用时间
     struct rlimit LIM;
-    LIM.rlim_max = 60;
-    LIM.rlim_cur = 60;
+    LIM.rlim_max = time_limit + 1;
+    LIM.rlim_cur = LIM.rlim_max;
     setrlimit(RLIMIT_CPU, &LIM);
-    alarm(3);
-    LIM.rlim_max = 100 * STD_MB;
-    LIM.rlim_cur = 100 * STD_MB;
+
+    //设置进程运行时间
+    alarm(0); //清除定时
+    alarm(time_limit * 10);
+
+    LIM.rlim_max = STD_MB; //设置文件大小限制
+    LIM.rlim_cur = STD_MB;
     setrlimit(RLIMIT_FSIZE, &LIM);
+
     LIM.rlim_max = STD_MB << 10;
     LIM.rlim_cur = STD_MB << 10;
     setrlimit(RLIMIT_AS, &LIM);
 
-    // puts("子进程:运行main!");
     if (execl("./main", "./main", (char *)NULL) == -1)
     {
-        // puts("子进程:运行main出错!");
         exit(1);
     }
     exit(0);
@@ -502,12 +618,8 @@ int main(int argc, char **argv)
 
     get_code_mysql(solution_id, lang);
 
-    puts("获取源代码成功！");
-
     int comile_flag = compile(lang);
 
-    printf("编译");
-    puts(comile_flag == 0 ? "成功!" : "失败!");
     if (comile_flag != 0)
     {
         add_ce_info(solution_id);
@@ -524,7 +636,7 @@ int main(int argc, char **argv)
     if (pidApp == 0) //子进程
     {
         puts("子进程:运行编译后的结果");
-        run_solution();
+        run_solution(lang, 100, 100);
     }
     else
     {
