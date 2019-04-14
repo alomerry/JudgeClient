@@ -5,15 +5,11 @@ using namespace std;
 
 int main()
 {
-  long a = 99999999;
-  int b = 9;
-  cin >> b;
-  while (a--)
-  {
-    // printf("%d", b);
-    b++;
-  }
-
+  long a = 99999999, c;
+  int b[9] = {0};
+  fill(b, b + 12, 0);
+  cin >> c;
+  b[19]++;
   cout << 6666 << endl;
   return 0;
 }
