@@ -266,7 +266,7 @@ void mk_work_dir(char *work_dir)
 {
     char shm_path[BUFF_SIZE];
     sprintf(shm_path, "%s", work_dir);
-    execute_cmd("/bin/mkdir -p %s", shm_path);
+    // execute_cmd("/bin/mkdir -p %s", shm_path);
     // execute_cmd("/bin/rm -rf %s", work_dir);
     // execute_cmd("/bin/ln -s %s %s/", shm_path, oj_home);
     // execute_cmd("/bin/chown judge %s ", shm_path);
@@ -336,11 +336,10 @@ void update_problem_submition(int problem_id)
 void run_solution()
 {
     puts("run_solution:执行编译结果");
-    // freopen("log/error.out", "a+", stderr);
+    freopen("log/error.out", "a+", stderr);
     freopen("data/data.in", "r", stdin);
     freopen("data/user.out", "w", stdout);
 
-    puts("子进程:标准输入输出导入文件!");
     ptrace(PTRACE_TRACEME, 0, NULL, NULL);
     struct rlimit LIM;
     LIM.rlim_max = 60;
@@ -354,14 +353,15 @@ void run_solution()
     LIM.rlim_cur = STD_MB << 10;
     setrlimit(RLIMIT_AS, &LIM);
 
-    puts("子进程:运行main!");
+    // puts("子进程:运行main!");
     if (execl("./main", "./main", (char *)NULL) == -1)
     {
-        puts("子进程:运行main出错!");
+        // puts("子进程:运行main出错!");
         exit(1);
     }
     exit(0);
 }
+
 int get_proc_status(pid_t pid, const char *mark)
 {
     FILE *file;
@@ -374,9 +374,9 @@ int get_proc_status(pid_t pid, const char *mark)
     {
         if (strncmp(mark, buf, len) == 0)
         {
-            printf("%s", buf);
+            // printf("%s", buf);
             sscanf(buf + len, "%d", &res);
-            cout << (res << 10) << endl;
+            // cout << (res << 10) << endl;
         }
     }
     if (file)
@@ -402,6 +402,7 @@ void watch_solution(pid_t pidApp, int &Judge_Result, int &usedtime)
         if (memory_usage > 100000)
         {
             Judge_Result = OJ_ML;
+            puts("内存超限");
             ptrace(PTRACE_KILL, pidApp, NULL, NULL);
             break;
         }
@@ -410,25 +411,15 @@ void watch_solution(pid_t pidApp, int &Judge_Result, int &usedtime)
             cout << "子进程正常运行结束" << endl;
             break;
         }
-        else
-        {
-            if (WIFSIGNALED(status))
-            {
-                // printf_wrongMessage(WTERMSIG(status));
-                cout << WTERMSIG(status) << endl;
-                break;
-            }
-        }
         if (get_file_size("log/error.out"))
         {
             Judge_Result = OJ_RE;
             //addreinfo(solution_id);
-            puts("watch_solution:父进程");
             ptrace(PTRACE_KILL, pidApp, NULL, NULL);
             break;
         }
         int exitcode = WEXITSTATUS(status);
-        if (exitcode != 0)
+        if (!(exitcode == 0 || exitcode == 0x05 || exitcode == 17))
         {
             if (Judge_Result == OJ_AC)
             {
@@ -447,7 +438,6 @@ void watch_solution(pid_t pidApp, int &Judge_Result, int &usedtime)
                 default:
                     Judge_Result = OJ_RE;
                 }
-                printf("print_runtime error");
                 print_runtimeerror(strsignal(exitcode));
             }
             ptrace(PTRACE_KILL, pidApp, NULL, NULL);
@@ -456,7 +446,6 @@ void watch_solution(pid_t pidApp, int &Judge_Result, int &usedtime)
         if (WIFSIGNALED(status))
         {
             int sig = WTERMSIG(status);
-
             if (Judge_Result == OJ_AC)
             {
                 switch (sig)
@@ -475,11 +464,12 @@ void watch_solution(pid_t pidApp, int &Judge_Result, int &usedtime)
                 default:
                     Judge_Result = OJ_RE;
                 }
-                printf("print_runtimeerror");
+                printf("print_runtimeerror....\n");
                 print_runtimeerror(strsignal(sig));
             }
             break;
         }
+        ptrace(PTRACE_SYSCALL, pidApp, NULL, NULL);
     }
     usedtime += (ruse.ru_utime.tv_sec * 1000 + ruse.ru_utime.tv_usec / 1000);
     usedtime += (ruse.ru_stime.tv_sec * 1000 + ruse.ru_stime.tv_usec / 1000);
@@ -527,13 +517,6 @@ int main(int argc, char **argv)
     {
         update_solution_info(solution_id, OJ_JI, 0, 0);
     }
-    /*
-    1.读取输入输出文件（下载或者访问）
-    2.设置时间限制，内存限制
-    3. (1)子进程运行程序
-       (2)父进程等待结束后判断程序输出和正确结果的异同
-    4.更新结果
-    */
     pid_t pidApp = fork();
     if (pidApp == 0) //子进程
     {
@@ -542,7 +525,7 @@ int main(int argc, char **argv)
     }
     else
     {
-        puts("父进程:开始检查子进程运行之后的结果");
+        printf("父进程:开始检查子进程运行之后的结果(子进程Id:%d)\n", (int)pidApp);
         watch_solution(pidApp, Judge_Result, usedtime);
     }
     mysql_close(conn);
