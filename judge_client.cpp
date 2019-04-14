@@ -335,10 +335,12 @@ void update_problem_submition(int problem_id)
 //执行编译结果
 void run_solution()
 {
+    puts("run_solution:执行编译结果");
+    // freopen("log/error.out", "a+", stderr);
     freopen("data/data.in", "r", stdin);
     freopen("data/user.out", "w", stdout);
-    freopen("log/error.out", "a+", stderr);
 
+    puts("子进程:标准输入输出导入文件!");
     ptrace(PTRACE_TRACEME, 0, NULL, NULL);
     struct rlimit LIM;
     LIM.rlim_max = 60;
@@ -352,15 +354,139 @@ void run_solution()
     LIM.rlim_cur = STD_MB << 10;
     setrlimit(RLIMIT_AS, &LIM);
 
-    if (execl("./main", "./main", (char *)NULL) != -1)
+    puts("子进程:运行main!");
+    if (execl("./main", "./main", (char *)NULL) == -1)
     {
+        puts("子进程:运行main出错!");
         exit(1);
     }
     exit(0);
 }
+int get_proc_status(pid_t pid, const char *mark)
+{
+    FILE *file;
+    char fileName[BUFF_SIZE], buf[BUFF_SIZE];
+
+    sprintf(fileName, "/proc/%d/status", pid);
+    file = fopen(fileName, "r");
+    int len = strlen(mark), res = 0;
+    while (file && fgets(buf, BUFF_SIZE - 1, file))
+    {
+        if (strncmp(mark, buf, len) == 0)
+        {
+            printf("%s", buf);
+            sscanf(buf + len, "%d", &res);
+            cout << (res << 10) << endl;
+        }
+    }
+    if (file)
+        fclose(file);
+    return res;
+}
+
+void print_runtimeerror(char *err)
+{
+    FILE *ferr = fopen("log/error.out", "a+");
+    fprintf(ferr, "Runtime Error:%s\n", err);
+    fclose(ferr);
+}
+//查看运行结果
+void watch_solution(pid_t pidApp, int &Judge_Result, int &usedtime)
+{
+    int status, memory_usage = 0;
+    struct rusage ruse;
+    while (true)
+    {
+        wait4(pidApp, &status, 0, &ruse);
+        memory_usage = get_proc_status(pidApp, "VmPeak:");
+        if (memory_usage > 100000)
+        {
+            Judge_Result = OJ_ML;
+            ptrace(PTRACE_KILL, pidApp, NULL, NULL);
+            break;
+        }
+        if (WIFEXITED(status))
+        {
+            cout << "子进程正常运行结束" << endl;
+            break;
+        }
+        else
+        {
+            if (WIFSIGNALED(status))
+            {
+                // printf_wrongMessage(WTERMSIG(status));
+                cout << WTERMSIG(status) << endl;
+                break;
+            }
+        }
+        if (get_file_size("log/error.out"))
+        {
+            Judge_Result = OJ_RE;
+            //addreinfo(solution_id);
+            puts("watch_solution:父进程");
+            ptrace(PTRACE_KILL, pidApp, NULL, NULL);
+            break;
+        }
+        int exitcode = WEXITSTATUS(status);
+        if (exitcode != 0)
+        {
+            if (Judge_Result == OJ_AC)
+            {
+                switch (exitcode)
+                {
+                case SIGCHLD:
+                case SIGALRM:
+                    alarm(0);
+                case SIGKILL:
+                case SIGXCPU:
+                    Judge_Result = OJ_TL;
+                    break;
+                case SIGXFSZ:
+                    Judge_Result = OJ_OL;
+                    break;
+                default:
+                    Judge_Result = OJ_RE;
+                }
+                printf("print_runtime error");
+                print_runtimeerror(strsignal(exitcode));
+            }
+            ptrace(PTRACE_KILL, pidApp, NULL, NULL);
+            break;
+        }
+        if (WIFSIGNALED(status))
+        {
+            int sig = WTERMSIG(status);
+
+            if (Judge_Result == OJ_AC)
+            {
+                switch (sig)
+                {
+                case SIGCHLD:
+                case SIGALRM:
+                    alarm(0);
+                case SIGKILL:
+                case SIGXCPU:
+                    Judge_Result = OJ_TL;
+                    break;
+                case SIGXFSZ:
+                    Judge_Result = OJ_OL;
+                    break;
+
+                default:
+                    Judge_Result = OJ_RE;
+                }
+                printf("print_runtimeerror");
+                print_runtimeerror(strsignal(sig));
+            }
+            break;
+        }
+    }
+    usedtime += (ruse.ru_utime.tv_sec * 1000 + ruse.ru_utime.tv_usec / 1000);
+    usedtime += (ruse.ru_stime.tv_sec * 1000 + ruse.ru_stime.tv_usec / 1000);
+}
 int main(int argc, char **argv)
 {
-    int problem_id = 0, user_id = 0, lang = 0;
+    int problem_id = 0, user_id = 0, lang = 0, Judge_Result = OJ_AC, usedtime = 0;
 
     char *solution_id;
 
@@ -380,8 +506,6 @@ int main(int argc, char **argv)
     chdir(work_dir);
 
     get_solution_info_mysql(solution_id, problem_id, user_id, lang);
-
-    puts("获取solution信息成功！");
 
     get_code_mysql(solution_id, lang);
 
@@ -409,19 +533,17 @@ int main(int argc, char **argv)
     3. (1)子进程运行程序
        (2)父进程等待结束后判断程序输出和正确结果的异同
     4.更新结果
-
     */
     pid_t pidApp = fork();
     if (pidApp == 0) //子进程
     {
+        puts("子进程:运行编译后的结果");
         run_solution();
     }
     else
     {
-        // cout << "pid = " << pidApp << endl;
-        // sleep(2);
-        // watch_solution(pidApp);
-        // judge_solution();
+        puts("父进程:开始检查子进程运行之后的结果");
+        watch_solution(pidApp, Judge_Result, usedtime);
     }
     mysql_close(conn);
     return 0;
@@ -440,28 +562,6 @@ void printf_wrongMessage()
     printf("错误原因:%s\n", mesg);
 }
 
-/**
- * 查看运行结
- */
-void watch_solution(pid_t pidApp)
-{
-    int status;
-    struct rusage ruse;
-    wait4(pidApp, &status, 0, &ruse);
-    //get_proc_status(pidApp, "VmPeak:");
-    if (WIFEXITED(status))
-    {
-        cout << "子进程正常运行结束" << endl;
-    }
-    else
-    {
-        if (WIFSIGNALED(status))
-        {
-            printf_wrongMessage(WTERMSIG(status));
-        }
-    }
-    //ptrace(PTRACE_KILL, pidApp, NULL, NULL); //杀死子进程，停止执行
-}
 int compare(const char *file1, const char *file2)
 {
     FILE *fp1, *fp2;
@@ -515,28 +615,4 @@ void judge_solution()
     {
         cout << "答案错误" << endl;
     }
-}
-int get_proc_status(pid_t pid, const char *mark)
-{
-    FILE *file;
-    char fileName[BUFF_SIZE], buf[BUFF_SIZE];
-
-    sprintf(fileName, "/proc/%d/status", pid);
-    cout << "fileName" << fileName << endl;
-    file = fopen(fileName, "r");
-    int len = strlen(mark), res;
-    cout << "文件打开成功" << file << endl;
-    while (file && fgets(buf, BUFF_SIZE - 1, file))
-    {
-        if (strncmp(mark, buf, len) == 0)
-        {
-            printf("%s", buf);
-            sscanf(buf + len, "%d", &res);
-            cout << (res << 10) << endl;
-        }
-    }
-
-    if (file)
-        fclose(file);
-    return 0;
 }
