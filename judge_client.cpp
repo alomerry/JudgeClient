@@ -345,7 +345,7 @@ void run_solution()
     LIM.rlim_max = 60;
     LIM.rlim_cur = 60;
     setrlimit(RLIMIT_CPU, &LIM);
-    alarm(60);
+    alarm(3);
     LIM.rlim_max = 100 * STD_MB;
     LIM.rlim_cur = 100 * STD_MB;
     setrlimit(RLIMIT_FSIZE, &LIM);
@@ -402,7 +402,7 @@ void watch_solution(pid_t pidApp, int &Judge_Result, int &usedtime)
         if (memory_usage > 100000)
         {
             Judge_Result = OJ_ML;
-            puts("内存超限");
+            printf("内存超限(%d)\n", memory_usage);
             ptrace(PTRACE_KILL, pidApp, NULL, NULL);
             break;
         }
@@ -419,6 +419,7 @@ void watch_solution(pid_t pidApp, int &Judge_Result, int &usedtime)
             break;
         }
         int exitcode = WEXITSTATUS(status);
+        printf("exit code : %d\n", exitcode);
         if (!(exitcode == 0 || exitcode == 0x05 || exitcode == 17))
         {
             if (Judge_Result == OJ_AC)
@@ -431,6 +432,7 @@ void watch_solution(pid_t pidApp, int &Judge_Result, int &usedtime)
                 case SIGKILL:
                 case SIGXCPU:
                     Judge_Result = OJ_TL;
+                    printf("%s\n", "时间超限");
                     break;
                 case SIGXFSZ:
                     Judge_Result = OJ_OL;
@@ -455,6 +457,7 @@ void watch_solution(pid_t pidApp, int &Judge_Result, int &usedtime)
                     alarm(0);
                 case SIGKILL:
                 case SIGXCPU:
+                    printf("%s\n", "时间超限");
                     Judge_Result = OJ_TL;
                     break;
                 case SIGXFSZ:
@@ -505,7 +508,6 @@ int main(int argc, char **argv)
 
     printf("编译");
     puts(comile_flag == 0 ? "成功!" : "失败!");
-
     if (comile_flag != 0)
     {
         add_ce_info(solution_id);
@@ -517,6 +519,7 @@ int main(int argc, char **argv)
     {
         update_solution_info(solution_id, OJ_JI, 0, 0);
     }
+    //是否可运行
     pid_t pidApp = fork();
     if (pidApp == 0) //子进程
     {
@@ -528,6 +531,7 @@ int main(int argc, char **argv)
         printf("父进程:开始检查子进程运行之后的结果(子进程Id:%d)\n", (int)pidApp);
         watch_solution(pidApp, Judge_Result, usedtime);
     }
+
     mysql_close(conn);
     return 0;
 }
