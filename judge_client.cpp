@@ -511,9 +511,9 @@ void print_runtimeerror(char *err)
  * filename 文件名
  * extension 后缀名
  */
-void get_file_type(char *file_name, char *&extension)
+bool check_file_type(char *file_name, char *extension)
 {
-    extension = strrchr(file_name, '.');
+    return strcasecmp(extension, strrchr(file_name, '.')) == 0;
 }
 //查看运行结果
 void watch_solution(pid_t pidApp, int &Judge_Result, int &usedtime)
@@ -668,9 +668,21 @@ int main(int argc, char **argv)
         mysql_close(conn);
         exit(-1);
     }
-    for (;(Judge_Result == OJ_AC) && (dirp = readdir(dp)) != NULL;)
+    for (; (Judge_Result == OJ_AC) && (dirp = readdir(dp)) != NULL;)
     {
-        strcmpi()
+        if (!check_file_type(dirp->d_name,"in"))
+        {
+            //资源有误
+            break;
+        }else{
+            /*
+            1.拷贝测试用例
+            2.生成输出文件
+            3.子进程运行题目
+            4.父进程监视是否可完整运行
+            5.
+            */
+        }
     }
     mysql_close(conn);
     return 0;
