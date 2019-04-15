@@ -401,8 +401,7 @@ void add_ce_info(char *solution_id)
 void update_solution_info(char *solution_id, int result, int time, int memory)
 {
     char sql[BUFF_SIZE];
-    sprintf(sql,
-            "update solution set result=%d,time=%d,memory=%d where solution_id='%s'", result, time, memory, solution_id);
+    sprintf(sql, "update solution set result=%d,time=%d,memory=%d where solution_id='%s'", result, time, memory, solution_id);
     if (Mode == DEBUG) //Debug Mode
     {
         printf("正在更新数据库，获取solution表信息\n\t%s\n", sql);
