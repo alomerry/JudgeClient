@@ -678,15 +678,21 @@ int main(int argc, char **argv)
             /*
             1.拷贝测试用例
             2.生成输出文件
+
             3.子进程运行题目
             4.父进程监视是否可完整运行
             5.
             */
+
         }
     }
     mysql_close(conn);
     return 0;
 }
+void prepare_file_to_run(char * work_dir,char input_file){
+    
+}
+
 
 void printf_wrongMessage(int status)
 {
