@@ -7,16 +7,17 @@
 #include <sys/user.h>
 #include <sys/ptrace.h>
 #include <mysql/mysql.h>
-// #include <algorithm>
+#include <dirent.h>
 #include <iostream>
 #include <stdio.h>
-// #include <stdarg.h>
 #include <unistd.h>
 #include <string>
 #include <string.h>
-// #include <errno.h>
 #include <wait.h>
 using namespace std;
+// #include <stdarg.h>
+// #include <errno.h>
+// #include <algorithm>
 
 // extern int errno;
 static const char lang_txt[4][8] = {"java", "c", "cpp", "py"};
@@ -505,6 +506,15 @@ void print_runtimeerror(char *err)
     fprintf(ferr, "Runtime Error:%s\n", err);
     fclose(ferr);
 }
+/**
+ * 获取文件后缀名
+ * filename 文件名
+ * extension 后缀名
+ */
+void get_file_type(char *file_name, char *&extension)
+{
+    extension = strrchr(file_name, '.');
+}
 //查看运行结果
 void watch_solution(pid_t pidApp, int &Judge_Result, int &usedtime)
 {
@@ -600,6 +610,10 @@ int main(int argc, char **argv)
 
     char work_dir[BUFF_SIZE];
 
+    // open DIRs
+    DIR *dp;
+    dirent *dirp;
+
     init_parameters(argc, argv, solution_id);
 
     init_mysql_conf();
@@ -634,15 +648,30 @@ int main(int argc, char **argv)
     pid_t pidApp = fork();
     if (pidApp == 0) //子进程
     {
-        puts("子进程:运行编译后的结果");
         run_solution(lang, 100, 100);
     }
     else
     {
-        printf("父进程:开始检查子进程运行之后的结果(子进程Id:%d)\n", (int)pidApp);
+        if (Mode == DEBUG) //Debug Mode
+        {
+            printf("父进程:开始检查子进程运行之后的结果(子进程Id:%d)\n", (int)pidApp);
+        }
         watch_solution(pidApp, Judge_Result, usedtime);
     }
-
+    //读取目录文件失败则判题子程序退出，-1
+    if ((dp = opendir("")) == NULL)
+    {
+        if (Mode == DEBUG) //Debug Mode
+        {
+            printf("不存在测试文件目录\n");
+        }
+        mysql_close(conn);
+        exit(-1);
+    }
+    for (;(Judge_Result == OJ_AC) && (dirp = readdir(dp)) != NULL;)
+    {
+        strcmpi()
+    }
     mysql_close(conn);
     return 0;
 }
