@@ -685,7 +685,7 @@ int main(int argc, char **argv)
             1.拷贝测试用例
             2.生成输出文件
             */
-            prepare_file_to_run
+            prepare_file_to_run(dirp->d_name);
             /*
             3.子进程运行题目
             4.父进程监视是否可完整运行
@@ -707,7 +707,7 @@ void prepare_file_to_run(char *input_file)
     char fullname[BUFF_SIZE];
     sprintf(fullname, "/input/%s.in", input_file); //ojhome中的文件
 
-    execute_cmd("/bin/cp %s /data/data.in", fullname);//workdir
+    execute_cmd("/bin/cp %s /data/data.in", fullname); //workdir
 }
 
 void printf_wrongMessage(int status)
