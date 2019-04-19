@@ -1,5 +1,25 @@
 #define BUFF_SIZE 512
 #define STD_MB 1048576
+
+#define DEBUG 1
+#define BUILD 0
+
+#define OJ_WT0 0 //Pending:等待中
+#define OJ_WT1 1 //Waiting:排队中
+#define OJ_CI 2  //compiling:编译中
+#define OJ_JI 3  //Judging:运行中
+#define OJ_AC 4  //Accepted:答案正确，请再接再厉。
+#define OJ_PE 5  //Presentation Error:答案基本正确，但是格式不对。
+#define OJ_WA 6  //Wrong Answer:答案不对，仅仅通过样例数据的测试并不一定是正确答案，一定还有你没想到的地方，点击查看系统可能提供的对比信息。
+#define OJ_TL 7  //Time Limit Exceeded:运行超出时间限制，检查下是否有死循环，或者应该有更快的计算方法
+#define OJ_ML 8  //Merrory Limit Exceeded:超出内存限制，数据可能需要压缩，检查内存是否有泄露
+#define OJ_OL 9  //Output Limit Exceeded:输出超过限制，你的输出超出了正确答案，一定是哪里弄错了
+#define OJ_RE 10 //Runtime Error:运行时错误，非法的内存访问，数组越界，指针漂移，调用禁用的系统函数。请点击后获得详细输出
+#define OJ_CE 11 //Compile Error:编译错误，请点击后获得编译器的详细输出
+#define OJ_CO 12 //Competition Over:竞赛结束???? 废弃
+#define OJ_PA 13 //Partial Accepted:部分正确
+#define OJ_SE 14 //System Error
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/resource.h>
@@ -30,25 +50,7 @@ static char password[BUFF_SIZE];
 static char db_name[BUFF_SIZE];
 static char oj_home[BUFF_SIZE];
 static int port_number;
-
-#define DEBUG 1
-#define BUILD 0
-
-#define OJ_WT0 0 //Pending:等待中
-#define OJ_WT1 1 //Waiting:排队中
-#define OJ_CI 2  //compiling:编译中
-#define OJ_JI 3  //Judging:运行中
-#define OJ_AC 4  //Accepted:答案正确，请再接再厉。
-#define OJ_PE 5  //Presentation Error:答案基本正确，但是格式不对。
-#define OJ_WA 6  //Wrong Answer:答案不对，仅仅通过样例数据的测试并不一定是正确答案，一定还有你没想到的地方，点击查看系统可能提供的对比信息。
-#define OJ_TL 7  //Time Limit Exceeded:运行超出时间限制，检查下是否有死循环，或者应该有更快的计算方法
-#define OJ_ML 8  //Merrory Limit Exceeded:超出内存限制，数据可能需要压缩，检查内存是否有泄露
-#define OJ_OL 9  //Output Limit Exceeded:输出超过限制，你的输出超出了正确答案，一定是哪里弄错了
-#define OJ_RE 10 //Runtime Error:运行时错误，非法的内存访问，数组越界，指针漂移，调用禁用的系统函数。请点击后获得详细输出
-#define OJ_CE 11 //Compile Error:编译错误，请点击后获得编译器的详细输出
-#define OJ_CO 12 //Competition Over:竞赛结束???? 废弃
-#define OJ_PA 13 //Partial Accepted:部分正确
-#define OJ_SE 14 //System Error
+int Judge_Result = OJ_AC;
 
 //清除字符串前后的空白
 void trim(char *c)
@@ -384,8 +386,7 @@ void add_ce_info(char *solution_id)
     {
         strcat(result, buf);
     }
-    snprintf(sql, sizeof(sql),
-             "insert into compile_info (solution_id,error) values ('%s','%s')", solution_id, result);
+    snprintf(sql, sizeof(sql), "insert into compile_info (solution_id,error) values ('%s','%s')", solution_id, result);
     if (Mode == DEBUG) //Debug Mode
     {
         printf("正在操作数据库，插入[compile_info]表信息\n\t%s\n", sql);
@@ -602,9 +603,70 @@ void watch_solution(pid_t pidApp, int &Judge_Result, int &usedtime)
     usedtime += (ruse.ru_utime.tv_sec * 1000 + ruse.ru_utime.tv_usec / 1000);
     usedtime += (ruse.ru_stime.tv_sec * 1000 + ruse.ru_stime.tv_usec / 1000);
 }
+/**
+ * 准备测试用例
+ * work_dir 工作空间
+ * input_file 测试用例
+ * p_id
+ */
+void prepare_file_to_run(char *input_file)
+{
+    char fullname[BUFF_SIZE];
+    sprintf(fullname, "/input/%s.in", input_file); //ojhome中的文件
+
+    execute_cmd("/bin/cp %s /data/data.in", fullname); //workdir
+}
+void compare(const char *user_file, const char *correct_result)
+{
+    FILE *res, *user;
+    char *res_buf, *user_buf, *p1, *p2;
+    res_buf = new char[BUFF_SIZE], user_buf = new char[BUFF_SIZE];
+    res = fopen(correct_result, "r");
+    user = fopen(user_file, "r");
+
+    while (Judge_Result == OJ_AC && fgets(res_buf, BUFF_SIZE, res) != NULL)
+    {
+        if (fgets(user_buf, BUFF_SIZE, user) != NULL)
+        {
+            //判断两个缓冲区是否相同
+            for (int i = 0; user_buf[i] != '\0' && i < BUFF_SIZE - 1; i++)
+            {
+                if (user_buf[i] != res_buf[i])
+                {
+                    Judge_Result = OJ_WA;
+                    if (Mode == DEBUG) //Debug Mode
+                    {
+                        printf("用户答案与标准答案不一致，答案错误\n");
+                    }
+                    break;
+                }
+            }
+        }
+        else
+        {
+            //答案错误
+            Judge_Result = OJ_WA;
+            break;
+        }
+    }
+
+    fclose(user);
+    fclose(res);
+    delete[] res_buf;
+    delete[] user_buf;
+}
+void judge_solution()
+{
+    compare("./data/data.in", "./data/user.out");
+    if (Judge_Result != OJ_AC)
+    {
+        cout << "答案错误" << endl;
+    }
+}
+
 int main(int argc, char **argv)
 {
-    int problem_id = 0, user_id = 0, lang = 0, Judge_Result = OJ_AC, usedtime = 0;
+    int problem_id = 0, user_id = 0, lang = 0, usedtime = 0;
 
     char *solution_id;
 
@@ -692,24 +754,21 @@ int main(int argc, char **argv)
             5.
             */
         }
+        pid_t pidApp = fork();
+        if (pidApp == 0)
+        {
+            run_solution(lang, 100, 100);
+        }
+        else
+        {
+            watch_solution(pidApp, Judge_Result, usedtime);
+            judge_solution();
+        }
     }
+    printf("整个程序结束，最终结果 [%s]", Judge_Result == OJ_AC ? "正确" : "失败");
     mysql_close(conn);
     return 0;
 }
-/**
- * 准备测试用例
- * work_dir 工作空间
- * input_file 测试用例
- * p_id
- */
-void prepare_file_to_run(char *input_file)
-{
-    char fullname[BUFF_SIZE];
-    sprintf(fullname, "/input/%s.in", input_file); //ojhome中的文件
-
-    execute_cmd("/bin/cp %s /data/data.in", fullname); //workdir
-}
-
 void printf_wrongMessage(int status)
 {
     printf("错误代码=%d\n", status);
@@ -721,59 +780,4 @@ void printf_wrongMessage()
     printf("错误代码=%d\n", errno);
     char *mesg = strerror(errno);
     printf("错误原因:%s\n", mesg);
-}
-
-int compare(const char *file1, const char *file2)
-{
-    FILE *fp1, *fp2;
-    char *s1, *s2, *p1, *p2;
-    s1 = new char[4096], s2 = new char[4096];
-    fp1 = fopen(file1, "r");
-    cout << "打开文件f1" << endl;
-    for (p1 = s1; EOF != fscanf(fp1, "%s", p1);)
-    {
-        while (*p1)
-        {
-            cout << *p1;
-            p1++;
-        }
-    }
-    fclose(fp1);
-    cout << "打开文件f1" << endl;
-    cout << "打开文件f2" << endl;
-    fp2 = fopen(file2, "r");
-    for (p2 = s2; EOF != fscanf(fp2, "%s", p2);)
-    {
-        while (*p2)
-        {
-            cout << *p2;
-            p2++;
-        }
-    }
-    fclose(fp2);
-    cout << "打开文件f2" << endl;
-    if (strcmp(s1, s2) == 0)
-    {
-        delete[] s1;
-        delete[] s2;
-        return 1;
-    }
-    else
-    {
-        delete[] s1;
-        delete[] s2;
-        return 0;
-    }
-}
-void judge_solution()
-{
-    int res = compare("./data/data.in", "./data/user.out");
-    if (res)
-    {
-        cout << "答案正确" << endl;
-    }
-    else
-    {
-        cout << "答案错误" << endl;
-    }
 }
