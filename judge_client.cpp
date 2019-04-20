@@ -514,6 +514,7 @@ void print_runtimeerror(char *err)
  */
 bool check_file_type(char *file_name, char *extension)
 {
+    // printf("#-判断文件后缀名-%s(%s) = %d \n", strrchr(file_name, '.'), extension, strcasecmp(extension, strrchr(file_name, '.')) == 0);
     return strcasecmp(extension, strrchr(file_name, '.')) == 0;
 }
 //查看运行结果
@@ -534,7 +535,7 @@ void watch_solution(pid_t pidApp, int &Judge_Result, int &usedtime)
         }
         if (WIFEXITED(status))
         {
-            cout << "子进程正常运行结束" << endl;
+            cout << "\t子进程正常运行结束" << endl;
             break;
         }
         if (get_file_size("log/error.out"))
@@ -545,7 +546,7 @@ void watch_solution(pid_t pidApp, int &Judge_Result, int &usedtime)
             break;
         }
         int exitcode = WEXITSTATUS(status);
-        printf("exit code : %d\n", exitcode);
+        // printf("exit code : %d\n", exitcode);
         if (!(exitcode == 0 || exitcode == 0x05 || exitcode == 17))
         {
             if (Judge_Result == OJ_AC)
@@ -612,12 +613,13 @@ void watch_solution(pid_t pidApp, int &Judge_Result, int &usedtime)
  */
 void prepare_file_to_run(char *input_file, char *input_result)
 {
+    printf("正在准备文件......\n\t输入文件(%s)  输出文件(%s)\n", input_file, input_result);
     char fullname[BUFF_SIZE];
-    sprintf(fullname, "/input/%s", input_file);        //ojhome中的文件
-    execute_cmd("/bin/cp %s /data/data.in", fullname); //workdir
+    sprintf(fullname, "./input/%s", input_file);        //ojhome中的文件
+    execute_cmd("/bin/cp -f %s ./data/data.in", fullname); //workdir
 
-    sprintf(fullname, "/input/%s", input_file);         //ojhome中的文件
-    execute_cmd("/bin/cp %s /data/data.out", fullname); //workdir
+    sprintf(fullname, "./input/%s", input_result);       //ojhome中的文件
+    execute_cmd("/bin/cp  -f %s ./data/data.out", fullname); //workdir
 }
 void compare(const char *user_file, const char *correct_result)
 {
@@ -632,14 +634,16 @@ void compare(const char *user_file, const char *correct_result)
         if (fgets(user_buf, BUFF_SIZE, user) != NULL)
         {
             //判断两个缓冲区是否相同
+            // printf("\t对比答案中.......\n");
             for (int i = 0; user_buf[i] != '\0' && i < BUFF_SIZE - 1; i++)
             {
+                printf("\t\t user[%c] res[%c]", user_buf[i], res_buf[i]);
                 if (user_buf[i] != res_buf[i])
                 {
                     Judge_Result = OJ_WA;
                     if (Mode == DEBUG) //Debug Mode
                     {
-                        printf("用户答案与标准答案不一致，答案错误\n");
+                        printf("\n\t用户答案与标准答案不一致，答案错误\n");
                     }
                     break;
                 }
@@ -660,10 +664,14 @@ void compare(const char *user_file, const char *correct_result)
 }
 void judge_solution()
 {
-    compare("./data/data.in", "./data/user.out");
+    compare("./data/data.out", "./data/user.out");
     if (Judge_Result != OJ_AC)
     {
-        cout << "答案错误" << endl;
+        cout << "\t答案错误" << endl;
+    }
+    else
+    {
+        cout << "\t答案正确" << endl;
     }
 }
 
@@ -733,41 +741,48 @@ int main(int argc, char **argv)
         mysql_close(conn);
         exit(-1);
     }
-    printf("Judge_Result [%s]\n", Judge_Result == OJ_AC ? "AC" : "WA");
+    printf("开始轮训样例......\n\t当前 Judge_Result [%s]\n", Judge_Result == OJ_AC ? "AC" : "WA");
     for (; (Judge_Result == OJ_AC) && (dirp = readdir(dp)) != NULL;)
     {
-        if (Mode == DEBUG)
-        {
-            printf("\t读取测试用例:%s\n", dirp->d_name);
-        }
-        if (!check_file_type(dirp->d_name, "in"))
+        if (!check_file_type(dirp->d_name, ".in") && !check_file_type(dirp->d_name, ".out"))
         {
             //资源有误
-            printf("\t读取测试用例:%s\n", dirp->d_name);
+            printf("\t读取文件:%s,非测试用例\n", dirp->d_name);
             continue;
         }
         else
         {
+            if (Mode == DEBUG)
+            {
+                printf("\t读取测试用例:%s\n", dirp->d_name);
+            }
             /*
             1.拷贝测试用例
             2.生成输出文件
             */
-            prepare_file_to_run(dirp->d_name,);
             /*
             3.子进程运行题目
             4.父进程监视是否可完整运行
             5.
             */
-        }
-        pid_t pidApp = fork();
-        if (pidApp == 0)
-        {
-            run_solution(lang, 100, 100);
-        }
-        else
-        {
-            watch_solution(pidApp, Judge_Result, usedtime);
-            judge_solution();
+            if (check_file_type(dirp->d_name, ".in") == 1)
+            {
+                char tmp[BUFF_SIZE] = {'\0'};
+                strcpy(tmp, dirp->d_name);
+                strtok(tmp, ".");
+                prepare_file_to_run(dirp->d_name, strcat(tmp, ".out"));
+
+                pid_t pidApp = fork();
+                if (pidApp == 0)
+                {
+                    run_solution(lang, 100, 100);
+                }
+                else
+                {
+                    watch_solution(pidApp, Judge_Result, usedtime);
+                    judge_solution();
+                }
+            }
         }
     }
     printf("整个程序结束，最终结果 [%s]\n", Judge_Result == OJ_AC ? "正确" : "失败");

@@ -8,6 +8,7 @@
         "array": "cpp",
         "deque": "cpp",
         "unordered_map": "cpp",
-        "vector": "cpp"
+        "vector": "cpp",
+        "exception": "cpp"
     }
 }

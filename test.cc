@@ -17,7 +17,8 @@ int main()
     for (; (dirp = readdir(dp)) != NULL;)
     {
         strcpy(tmp, dirp->d_name);
-        printf("%s\t", strtok(tmp, "."));
+        strtok(tmp, ".");
+        printf("%s\t", strcat(tmp,".out"));
         // printf("%s\n", dirp->d_name);
     }
     return 666;
