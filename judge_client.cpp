@@ -631,7 +631,7 @@ void compare(const char *correct_result, const char *user_file)
         printf("[%s", res_buf);
         if (fgets(user_buf, BUFF_SIZE, user) != NULL)
         {
-            printf("{%s", user_buf);
+            // printf("{%s", user_buf);
             //判断两个缓冲区是否相同
             // printf("\t对比答案中.......\n");
             for (int i = 0; user_buf[i] != '\0' && i <= BUFF_SIZE - 1; i++)
