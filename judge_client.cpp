@@ -607,14 +607,17 @@ void watch_solution(pid_t pidApp, int &Judge_Result, int &usedtime)
  * 准备测试用例
  * work_dir 工作空间
  * input_file 测试用例
+ * input_result 测试用例结果
  * p_id
  */
-void prepare_file_to_run(char *input_file)
+void prepare_file_to_run(char *input_file, char *input_result)
 {
     char fullname[BUFF_SIZE];
-    sprintf(fullname, "/input/%s.in", input_file); //ojhome中的文件
-
+    sprintf(fullname, "/input/%s", input_file);        //ojhome中的文件
     execute_cmd("/bin/cp %s /data/data.in", fullname); //workdir
+
+    sprintf(fullname, "/input/%s", input_file);         //ojhome中的文件
+    execute_cmd("/bin/cp %s /data/data.out", fullname); //workdir
 }
 void compare(const char *user_file, const char *correct_result)
 {
@@ -716,12 +719,12 @@ int main(int argc, char **argv)
     {
         if (Mode == DEBUG) //Debug Mode
         {
-            printf("父进程:开始检查子进程运行之后的结果(子进程Id:%d)\n", (int)pidApp);
+            printf("父进程:\n\t开始检查子进程运行之后的结果(子进程Id:%d)\n", (int)pidApp);
         }
         watch_solution(pidApp, Judge_Result, usedtime);
     }
     //读取目录文件失败则判题子程序退出，-1
-    if ((dp = opendir("")) == NULL)
+    if ((dp = opendir("./input")) == NULL)
     {
         if (Mode == DEBUG) //Debug Mode
         {
@@ -730,16 +733,18 @@ int main(int argc, char **argv)
         mysql_close(conn);
         exit(-1);
     }
+    printf("Judge_Result [%s]\n", Judge_Result == OJ_AC ? "AC" : "WA");
     for (; (Judge_Result == OJ_AC) && (dirp = readdir(dp)) != NULL;)
     {
         if (Mode == DEBUG)
         {
-            printf("读取测试用例:%s", dirp->d_name);
+            printf("\t读取测试用例:%s\n", dirp->d_name);
         }
         if (!check_file_type(dirp->d_name, "in"))
         {
             //资源有误
-            break;
+            printf("\t读取测试用例:%s\n", dirp->d_name);
+            continue;
         }
         else
         {
@@ -747,7 +752,7 @@ int main(int argc, char **argv)
             1.拷贝测试用例
             2.生成输出文件
             */
-            prepare_file_to_run(dirp->d_name);
+            prepare_file_to_run(dirp->d_name,);
             /*
             3.子进程运行题目
             4.父进程监视是否可完整运行
@@ -765,7 +770,7 @@ int main(int argc, char **argv)
             judge_solution();
         }
     }
-    printf("整个程序结束，最终结果 [%s]", Judge_Result == OJ_AC ? "正确" : "失败");
+    printf("整个程序结束，最终结果 [%s]\n", Judge_Result == OJ_AC ? "正确" : "失败");
     mysql_close(conn);
     return 0;
 }

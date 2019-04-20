@@ -1,21 +1,24 @@
-#include <algorithm>
 #include <iostream>
 #include <stdio.h>
+#include <dirent.h>
 #include <string.h>
 using namespace std;
 
 int main()
 {
-    int len = 0;
-    char buf[512];
-    char res[10240];
-
-    FILE *fp = fopen("log/ce.txt", "r");
-    while (fgets(buf, 512, fp) != NULL)
+    // open DIRs
+    DIR *dp;
+    dirent *dirp;
+    char tmp[4096] = {'\0'};
+    if ((dp = opendir("./input")) == NULL)
     {
-        strcat(res, buf);
+        printf("文件夹打开失败\n");
     }
-    cout << res << endl;
-    fclose(fp);
+    for (; (dirp = readdir(dp)) != NULL;)
+    {
+        strcpy(tmp, dirp->d_name);
+        printf("%s\t", strtok(tmp, "."));
+        // printf("%s\n", dirp->d_name);
+    }
     return 666;
 }

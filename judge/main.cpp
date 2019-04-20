@@ -8,8 +8,7 @@ int main()
   long a = 99999999, c;
   int b[9] = {0};
   cin >> c;
-  fill(b, b + 12, 0);
-  b[19]++;
-  cout << 6666 << endl;
+  cout << 6 << endl;
+ cout << 6 << endl;
   return 0;
 }
