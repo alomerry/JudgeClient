@@ -615,29 +615,28 @@ void prepare_file_to_run(char *input_file, char *input_result)
 {
     printf("正在准备文件......\n\t输入文件(%s)  输出文件(%s)\n", input_file, input_result);
     char fullname[BUFF_SIZE];
-    sprintf(fullname, "./input/%s", input_file);        //ojhome中的文件
+    sprintf(fullname, "./input/%s", input_file);           //ojhome中的文件
     execute_cmd("/bin/cp -f %s ./data/data.in", fullname); //workdir
 
-    sprintf(fullname, "./input/%s", input_result);       //ojhome中的文件
+    sprintf(fullname, "./input/%s", input_result);           //ojhome中的文件
     execute_cmd("/bin/cp  -f %s ./data/data.out", fullname); //workdir
 }
-void compare(const char *user_file, const char *correct_result)
+void compare(const char *correct_result, const char *user_file)
 {
-    FILE *res, *user;
-    char *res_buf, *user_buf, *p1, *p2;
-    res_buf = new char[BUFF_SIZE], user_buf = new char[BUFF_SIZE];
-    res = fopen(correct_result, "r");
-    user = fopen(user_file, "r");
+    FILE *res = fopen(correct_result, "r"), *user = fopen(user_file, "r");
+    char *res_buf = new char[BUFF_SIZE], *user_buf = new char[BUFF_SIZE];
 
     while (Judge_Result == OJ_AC && fgets(res_buf, BUFF_SIZE, res) != NULL)
     {
+        printf("[%s", res_buf);
         if (fgets(user_buf, BUFF_SIZE, user) != NULL)
         {
+            printf("{%s", user_buf);
             //判断两个缓冲区是否相同
             // printf("\t对比答案中.......\n");
-            for (int i = 0; user_buf[i] != '\0' && i < BUFF_SIZE - 1; i++)
+            for (int i = 0; user_buf[i] != '\0' && i <= BUFF_SIZE - 1; i++)
             {
-                printf("\t\t user[%c] res[%c]", user_buf[i], res_buf[i]);
+                // printf("\t\t user[%c] res[s%c]", user_buf[i], res_buf[i]);
                 if (user_buf[i] != res_buf[i])
                 {
                     Judge_Result = OJ_WA;
@@ -652,10 +651,16 @@ void compare(const char *user_file, const char *correct_result)
         else
         {
             //答案错误
+            if (Mode == DEBUG) //Debug Mode
+            {
+                printf("\n\t用户答案与标准答案不一致，答案错误\n");
+            }
             Judge_Result = OJ_WA;
             break;
         }
     }
+
+    printf("\t\t Judge_Result[%d]\n", Judge_Result);
 
     fclose(user);
     fclose(res);
@@ -747,14 +752,14 @@ int main(int argc, char **argv)
         if (!check_file_type(dirp->d_name, ".in") && !check_file_type(dirp->d_name, ".out"))
         {
             //资源有误
-            printf("\t读取文件:%s,非测试用例\n", dirp->d_name);
+            // printf("\t读取文件:%s,非测试用例\n", dirp->d_name);
             continue;
         }
         else
         {
             if (Mode == DEBUG)
             {
-                printf("\t读取测试用例:%s\n", dirp->d_name);
+                // printf("\t读取测试用例:%s\n", dirp->d_name);
             }
             /*
             1.拷贝测试用例
