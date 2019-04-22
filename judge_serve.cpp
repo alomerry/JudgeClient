@@ -1,19 +1,31 @@
 #define BUFF_SIZE 512
 #define DEBUG 1
-#include <iostream>
-#include <unistd.h>
 #include <mysql/mysql.h>
+#include <sys/stat.h>
+#include <iostream>
+#include <fcntl.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <signal.h>
 #include <string.h>
 using namespace std;
 
 MYSQL *conn;
 static int Mode = 0;
+static bool STOP = false;
 static char host_name[BUFF_SIZE];
 static char user_name[BUFF_SIZE];
 static char password[BUFF_SIZE];
 static char db_name[BUFF_SIZE];
 static char oj_home[BUFF_SIZE];
 static int port_number;
+static int sleep_time;
+
+void call_for_exit(int s)
+{
+    STOP = true;
+    printf("Stopping judged...\n");
+}
 //清除字符串前后的空白
 void trim(char *c)
 {
@@ -78,6 +90,7 @@ void init_mysql_conf()
             read_buf(buf, "OJ_PASSWORD", password);
             read_buf(buf, "OJ_DB_NAME", db_name);
             read_int(buf, "OJ_PORT_NUMBER", &port_number);
+            read_int(buf, "OJ_SLEEP_TIME", &sleep_time);
         }
         fclose(fp);
     }
@@ -87,20 +100,96 @@ void init_mysql_conf()
         printf("初始化数据库中......\n\thost_name(%s)\n\tuser_name(%s)\n\tdb_name(%s)\n\t初始化完毕。\n", host_name, user_name, db_name);
     }
 }
+//初始化mysql连接
+int init_mysql_conn()
+{
+    conn = mysql_init(NULL);
+    const char timeout = 30;
+    //配置连接时间
+    mysql_options(conn, MYSQL_OPT_CONNECT_TIMEOUT, &timeout);
 
+    if (Mode == DEBUG) //Debug Mode
+    {
+        printf("初始化数据库连接中......\n");
+    }
+
+    if (!mysql_real_connect(conn, host_name, user_name, password, db_name, port_number, NULL, 0))
+    {
+        if (Mode == DEBUG) //Debug Mode
+        {
+            printf("\t初始化失败。\n");
+        }
+        return 0;
+    }
+    if (Mode == DEBUG) //Debug Mode
+    {
+        printf("\t初始化成功。\n");
+    }
+    return 1;
+}
+int daemon_init(void)
+{
+    pid_t pid;
+    if ((pid = fork()) < 0)
+        return (-1);
+    else if (pid != 0)
+        exit(0); /* parent exit */
+
+    /* child continues */
+    setsid();       /* become session leader */
+    chdir(oj_home); /* change working directory */
+    umask(0);       /* clear file mode creation mask */
+    close(0);       /* close stdin */
+    close(1);       /* close stdout */
+    close(2);       /* close stderr */
+    return (0);
+}
+
+int lockfile(int fd)
+{
+    struct flock fl;
+    fl.l_type = F_WRLCK;
+    fl.l_start = 0;
+    fl.l_whence = SEEK_SET;
+    fl.l_len = 0;
+    return (fcntl(fd, F_SETLK, &fl));
+}
+int already_running()
+{
+    int fd;
+    char buf[16];
+    fd = open("", O_RDWR | O_CREAT, (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH));
+    if (fd < 0)
+    {
+        strerror(errno);
+        exit(1);
+    }
+    if (lockfile(fd) < 0)
+    {
+        if (errno == EACCES || errno == EAGAIN)
+        {
+            close(fd);
+            return 1;
+        }
+        exit(1);
+    }
+    ftruncate(fd, 0);
+    sprintf(buf, "%d", getpid());
+    write(fd, buf, strlen(buf) + 1);
+    return (0);
+}
 int main(int argc, char **argv)
 {
     strcpy(oj_home, "/home/judge");
     chdir(oj_home); // change the dir
 
-    if (!DEBUG)
-        daemon_init(); //创建一个daemon守护进程
-    if (strcmp(oj_home, "/home/judge") == 0 && already_running())
-    {
-        syslog(LOG_ERR | LOG_DAEMON,
-               "This daemon program is already running!\n");
-        return 1;
-    }
+    // if (!DEBUG)
+    //     daemon_init(); //创建一个daemon守护进程
+    // if (strcmp(oj_home, "/home/judge") == 0 && already_running())
+    // {
+    //     printf("%s\n", "This daemon program is already running!\n");
+    //     return 1;
+    // }
     //	struct timespec final_sleep;
     //	final_sleep.tv_sec=0;
     //	final_sleep.tv_nsec=500000000;
@@ -111,10 +200,7 @@ int main(int argc, char **argv)
     int j = 1;
     while (1)
     { // start to run
-        //这个while的好处在于，只要一有任务就抓紧占用系统优先把所以任务处理完成，哪怕会空循环几次的可能存在
-        //但是没有任务后，就会进入到“懒散”的 休息sleep(time)后再轮询是不是有任务，释放系统的资源，避免Damon一直
-        //死循环占用系统
-        while (j && (http_judge || !init_mysql()))
+        while (j && !init_mysql_conn())
         {
 
             j = work(); //如果读取失败或者没有要评测的数据，那么返回0，利用那么有限的几个进程来评测无限的任务量
