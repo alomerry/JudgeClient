@@ -20,8 +20,7 @@ void printf_wrongMessage()
 }
 void run_client()
 {
-  if (execl("/home/mo/Desktop/project/JudgeClient/client",
-            "/home/mo/Desktop/project/JudgeClient/client", "asfdf1321ads", 1, NULL) == -1)
+  if (execl("/home/mo/Desktop/project/JudgeClient/client", "asdfasfasf", "1", NULL) == -1)
   {
     cout << "调用失败" << endl;
     printf_wrongMessage();
@@ -29,8 +28,7 @@ void run_client()
 }
 void run_test()
 {
-  if (execl("/home/mo/Desktop/project/JudgeClient/test/alarm",
-            "/home/mo/Desktop/project/JudgeClient/test/alarm",666, NULL) == -1)
+  if (execl("/home/mo/Desktop/project/JudgeClient/test/alarm", "/home/mo/Desktop/project/JudgeClient/test/alarm", "1", "2", "3", (char *)NULL) == -1)
   {
     cout << "调用失败" << endl;
     printf_wrongMessage();
@@ -38,6 +36,7 @@ void run_test()
 }
 int main(int argc, char **argv)
 {
+
   int id = 0, tmp = -1;
   id = fork();
   if (id == 0)

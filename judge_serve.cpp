@@ -225,8 +225,10 @@ int get_unjudged_solutions(string *solutions)
 }
 void run_client(string solution)
 {
-    
-    execl("./client", "./client", solution.c_str(), 1, (char *)NULL);
+    if (execl("./client", "./client", solution.c_str(), "1", (char *)NULL) == -1)
+    {
+        printf("调用失败!");
+    }
 }
 int work()
 {
@@ -268,7 +270,9 @@ int work()
             printf("%s[%s]\n", "子进程启动", solution_id);
             run_client(solution_id);
             exit(0);
-        }else{
+        }
+        else
+        {
         }
     }
 
@@ -311,7 +315,7 @@ int main(int argc, char **argv)
         {
 
             j = work(); //如果读取失败或者没有要评测的数据，那么返回0，利用那么有限的几个进程来评测无限的任务量
-            printf("%s[d]%s\n", "/************************** work result [",j,"] ***********************/");
+            printf("%s[d]%s\n", "/************************** work result [", j, "] ***********************/");
         }
         sleep(sleep_time);
         j = 1;

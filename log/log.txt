@@ -1,3 +1,0 @@
-arg[1]:{./client}
-arg[2]:{dafdfad}
-arg[3]:{1}
