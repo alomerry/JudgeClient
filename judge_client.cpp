@@ -52,6 +52,27 @@ static char oj_home[BUFF_SIZE];
 static int port_number;
 int Judge_Result = OJ_AC;
 
+void write_log(const char *fmt, ...)
+{
+    va_list ap;
+    char buffer[4096];
+    // sprintf(buffer, "%s/log/client.log", oj_home);
+    sprintf(buffer, "./log/log.txt");
+    FILE *fp = fopen(buffer, "a+");
+    if (fp == NULL)
+    {
+        fprintf(stderr, "openfile error!\n");
+        system("pwd");
+    }
+    va_start(ap, fmt);
+    //l =
+    vsprintf(buffer, fmt, ap);
+    fprintf(fp, "%s\n", buffer);
+    // if (DEBUG)
+    // printf("%s\n", buffer);
+    va_end(ap);
+    fclose(fp);
+}
 //清除字符串前后的空白
 void trim(char *c)
 {
@@ -238,6 +259,11 @@ void get_code_mysql(char *solution_id, int lang)
  */
 void init_parameters(int argc, char **argv, char *&solution_id)
 {
+    for (int i = 0; i < argc; i++)
+    {
+        write_log("arg[%d]:{%s}", i + 1, argv[i]);
+    }
+
     if (argc < 3)
     {
         if (Mode == DEBUG) //Debug Mode
@@ -682,6 +708,9 @@ void judge_solution()
 
 int main(int argc, char **argv)
 {
+
+    // freopen("log/log.txt", "w", stdout);
+
     int problem_id = 0, user_id = 0, lang = 0, usedtime = 0;
 
     char *solution_id;
@@ -792,17 +821,8 @@ int main(int argc, char **argv)
     }
     printf("整个程序结束，最终结果 [%s]\n", Judge_Result == OJ_AC ? "正确" : "失败");
     mysql_close(conn);
+
+    printf("%s\n", "/************************** client结束 ***********************/");
+
     return 0;
-}
-void printf_wrongMessage(int status)
-{
-    printf("错误代码=%d\n", status);
-    char *mesg = strerror(status);
-    printf("错误原因:%s\n", mesg);
-}
-void printf_wrongMessage()
-{
-    printf("错误代码=%d\n", errno);
-    char *mesg = strerror(errno);
-    printf("错误原因:%s\n", mesg);
 }

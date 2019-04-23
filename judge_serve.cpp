@@ -225,6 +225,7 @@ int get_unjudged_solutions(string *solutions)
 }
 void run_client(string solution)
 {
+    
     execl("./client", "./client", solution.c_str(), 1, (char *)NULL);
 }
 int work()
@@ -264,10 +265,24 @@ int work()
         ID[i] = fork();
         if (ID[i] == 0)
         {
+            printf("%s[%s]\n", "子进程启动", solution_id);
             run_client(solution_id);
             exit(0);
+        }else{
         }
     }
+
+    while ((tmp_pid = waitpid(-1, NULL, WNOHANG)) > 0)
+    {
+        working_cnt--;
+        ret_cnt++;
+        for (i = 0; i < max_running; i++) // get the client id
+            if (ID[i] == tmp_pid)
+                break; // got the client id
+        ID[i] = 0;
+        printf("tmp_pid = %d\n", tmp_pid);
+    }
+
     return ret_cnt;
 }
 int main(int argc, char **argv)
@@ -286,9 +301,9 @@ int main(int argc, char **argv)
     //	final_sleep.tv_sec=0;
     //	final_sleep.tv_nsec=500000000;
     init_mysql_conf(); // set the database info
-    signal(SIGQUIT, call_for_exit);
-    signal(SIGKILL, call_for_exit);
-    signal(SIGTERM, call_for_exit);
+    // signal(SIGQUIT, call_for_exit);
+    // signal(SIGKILL, call_for_exit);
+    // signal(SIGTERM, call_for_exit);
     int j = 1;
     // while (1)
     { // start to run
@@ -296,9 +311,11 @@ int main(int argc, char **argv)
         {
 
             j = work(); //如果读取失败或者没有要评测的数据，那么返回0，利用那么有限的几个进程来评测无限的任务量
+            printf("%s[d]%s\n", "/************************** work result [",j,"] ***********************/");
         }
         sleep(sleep_time);
         j = 1;
     }
+    printf("%s\n", "/************************** serve结束 ***********************/");
     return 0;
 }
