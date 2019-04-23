@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <string.h>
+#include <wait.h>
 using namespace std;
 
 MYSQL *conn;
@@ -18,9 +19,10 @@ static char user_name[BUFF_SIZE];
 static char password[BUFF_SIZE];
 static char db_name[BUFF_SIZE];
 static char oj_home[BUFF_SIZE];
+static char lang_set[BUFF_SIZE];
 static int port_number;
 static int sleep_time;
-
+static int max_running;
 void call_for_exit(int s)
 {
     STOP = true;
@@ -89,8 +91,10 @@ void init_mysql_conf()
             read_buf(buf, "OJ_USER_NAME", user_name);
             read_buf(buf, "OJ_PASSWORD", password);
             read_buf(buf, "OJ_DB_NAME", db_name);
+            read_buf(buf, "OJ_LANG_SET", lang_set);
             read_int(buf, "OJ_PORT_NUMBER", &port_number);
             read_int(buf, "OJ_SLEEP_TIME", &sleep_time);
+            read_int(buf, "OJ_RUNNING", &max_running);
         }
         fclose(fp);
     }
@@ -178,6 +182,94 @@ int already_running()
     write(fd, buf, strlen(buf) + 1);
     return (0);
 }
+int get_unjudged_solutions(string *solutions)
+{
+    MYSQL_RES *res;
+    MYSQL_ROW row;
+
+    char sql[BUFF_SIZE];
+
+    sprintf(sql, "select solution_id from solution where language in (0,1,2,3) and result = 0 limit %d", max_running * 2);
+
+    if (Mode == DEBUG) //Debug Mode
+    {
+        printf("正在查询数据库，获取[solution]表信息\n\t%s\n", sql);
+    }
+
+    mysql_real_query(conn, sql, strlen(sql));
+    res = mysql_store_result(conn);
+    if (mysql_num_rows(res) == 0)
+    {
+        if (Mode == DEBUG) //Debug Mode
+        {
+            printf("\tsolution不存在!\n");
+        }
+        exit(1);
+    }
+
+    if (Mode == DEBUG) //Debug Mode
+    {
+        printf("\t查询成功。\n");
+    }
+
+    int i = 0, ret = 0;
+    while ((row = mysql_fetch_row(res)) != NULL)
+    {
+        solutions[i++] = row[0];
+    }
+    ret = i;
+    while (i <= max_running * 2)
+        solutions[i++] = "0";
+    mysql_free_result(res);
+    return ret;
+}
+void run_client(string solution)
+{
+    execl("./client", "./client", solution.c_str(), 1, (char *)NULL);
+}
+int work()
+{
+    static int ret_cnt = 0; //统计 已经 完成评测次数
+    int i = 0;
+    static pid_t ID[100];                  //short类型的宏定义，进程表中的索引项，进程号；保存正在执行的子进程pid
+    static int working_cnt = 0;            //统计 现用 judge_client进程数量
+    string solution_id;                    //solution_id，测试运行编号
+    string solutions[max_running * 2 + 1]; //max_running 从judge.conf获取，一般为4，这里设置为工作目录：9
+    pid_t tmp_pid = 0;
+
+    ;
+
+    if (!get_unjudged_solutions(solutions)) //如果读取失败或者要评测题目数量为0，jobs[]被置为：1001，1002，0，...0；默认9位
+        ret_cnt = 0;
+
+    for (int j = 0; solutions[j].compare("0") != 0; j++)
+    {
+        solution_id = solutions[j];
+        if (working_cnt >= max_running)
+        {
+            tmp_pid = waitpid(-1, NULL, 0);
+            --working_cnt;
+            ++ret_cnt;
+            for (i = 0; i < max_running; i++) // get the client id
+                if (ID[i] == tmp_pid)
+                    break; // got the client id
+            ID[i] = 0;
+        }
+        else
+        {
+            for (i = 0; i < max_running; i++) // find the client id
+                if (ID[i] == 0)
+                    break; // got the client id
+        }
+        ID[i] = fork();
+        if (ID[i] == 0)
+        {
+            run_client(solution_id);
+            exit(0);
+        }
+    }
+    return ret_cnt;
+}
 int main(int argc, char **argv)
 {
     strcpy(oj_home, "/home/judge");
@@ -198,7 +290,7 @@ int main(int argc, char **argv)
     signal(SIGKILL, call_for_exit);
     signal(SIGTERM, call_for_exit);
     int j = 1;
-    while (1)
+    // while (1)
     { // start to run
         while (j && !init_mysql_conn())
         {
