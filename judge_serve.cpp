@@ -294,6 +294,7 @@ int main(int argc, char **argv)
     strcpy(oj_home, "/home/judge");
     chdir(oj_home); // change the dir
 
+    Mode = DEBUG;
     // if (!DEBUG)
     //     daemon_init(); //创建一个daemon守护进程
     // if (strcmp(oj_home, "/home/judge") == 0 && already_running())
@@ -311,11 +312,13 @@ int main(int argc, char **argv)
     int j = 1;
     // while (1)
     { // start to run
-        while (j && !init_mysql_conn())
+        while (j && init_mysql_conn())
         {
 
+            printf("%s%d%s\n", "/************************** work 工作前 result [", j, "] ***********************/");
             j = work(); //如果读取失败或者没有要评测的数据，那么返回0，利用那么有限的几个进程来评测无限的任务量
-            printf("%s[d]%s\n", "/************************** work result [", j, "] ***********************/");
+            printf("%s%d%s\n", "/************************** work 工作后 result [", j, "] ***********************/");
+            j = 0;
         }
         sleep(sleep_time);
         j = 1;

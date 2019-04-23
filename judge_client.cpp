@@ -262,6 +262,7 @@ void init_parameters(int argc, char **argv, char *&solution_id)
     for (int i = 0; i < argc; i++)
     {
         write_log("arg[%d]:{%s}", i + 1, argv[i]);
+        printf(argv[i]);
     }
 
     if (argc < 3)
