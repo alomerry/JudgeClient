@@ -240,7 +240,6 @@ int work()
     string solutions[max_running * 2 + 1]; //max_running 从judge.conf获取，一般为4，这里设置为工作目录：9
     pid_t tmp_pid = 0;
 
-    ;
 
     if (!get_unjudged_solutions(solutions)) //如果读取失败或者要评测题目数量为0，jobs[]被置为：1001，1002，0，...0；默认9位
         ret_cnt = 0;
