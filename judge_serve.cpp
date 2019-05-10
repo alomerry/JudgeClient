@@ -81,8 +81,8 @@ void init_mysql_conf()
     password[0] = 0;
     db_name[0] = 0;
     port_number = 3306;
-    // sprintf(buf, "%s/etc/judge.conf", oj_home);
-    fp = fopen("./etc/judge.conf", "r");
+    sprintf(buf, "%s/etc/judge.conf", oj_home);
+    fp = fopen(buf, "r");
     if (fp != NULL)
     {
         while (fgets(buf, BUFF_SIZE - 1, fp))
@@ -240,7 +240,6 @@ int work()
     string solutions[max_running * 2 + 1]; //max_running 从judge.conf获取，一般为4，这里设置为工作目录：9
     pid_t tmp_pid = 0;
 
-
     if (!get_unjudged_solutions(solutions)) //如果读取失败或者要评测题目数量为0，jobs[]被置为：1001，1002，0，...0；默认9位
         ret_cnt = 0;
 
@@ -290,7 +289,8 @@ int work()
 }
 int main(int argc, char **argv)
 {
-    strcpy(oj_home, "/home/judge");
+
+    strcpy(oj_home, "/oj-home");
     chdir(oj_home); // change the dir
 
     Mode = DEBUG;
@@ -304,6 +304,7 @@ int main(int argc, char **argv)
     //	struct timespec final_sleep;
     //	final_sleep.tv_sec=0;
     //	final_sleep.tv_nsec=500000000;
+
     init_mysql_conf(); // set the database info
     // signal(SIGQUIT, call_for_exit);
     // signal(SIGKILL, call_for_exit);
