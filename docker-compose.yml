@@ -1,7 +1,7 @@
 version: "3"
 services:
     judge_server:
-        image: mine-oj
+        build: .
         read_only: true
         cap_drop:
             - SETPCAP
@@ -15,10 +15,11 @@ services:
         volumes:
             # - $PWD/tests/test_case:/test_case:ro
             - /mnt/hgfs/webapp/problem_cases:/oj-home/problem_cases:ro
+            - /home/mo/oj-home:/oj-home:rw
             # - $PWD/log:/log
-        environment:
+        # environment:
             # - BACKEND_URL=http://backend:80/api/judge_server_heartbeat
             # - SERVICE_URL=192.168.1.111:12358
             # - TOKEN=YOUR_TOKEN_HERE
         ports:
-            - "0.0.0.0:12358:8080"
+            - "0.0.0.0:1079:8080"

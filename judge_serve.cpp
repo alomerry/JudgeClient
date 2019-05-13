@@ -216,6 +216,7 @@ int get_unjudged_solutions(string *solutions)
     while ((row = mysql_fetch_row(res)) != NULL)
     {
         solutions[i++] = row[0];
+        printf("\t查询SolutionId[%s]。\n", row[0]);
     }
     ret = i;
     while (i <= max_running * 2)
@@ -225,7 +226,7 @@ int get_unjudged_solutions(string *solutions)
 }
 void run_client(string solution)
 {
-    if (execl("./client", "./client", solution.c_str(), "1", (char *)NULL) == -1)
+    if (execl("./judge_client", "./judge_client", solution.c_str(), "1", (char *)NULL) == -1)
     {
         printf("调用失败!");
     }
@@ -321,7 +322,7 @@ int main(int argc, char **argv)
             j = 0;
         }
         sleep(sleep_time);
-        j = 1;
+        // j = 1;
     }
     printf("%s\n", "/************************** serve结束 ***********************/");
     return 0;

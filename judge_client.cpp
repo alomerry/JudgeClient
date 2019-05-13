@@ -4,22 +4,6 @@
 #define DEBUG 1
 #define BUILD 0
 
-#define OJ_WT0 0 //Pending:等待中
-#define OJ_WT1 1 //Waiting:排队中
-#define OJ_CI 2  //compiling:编译中
-#define OJ_JI 3  //Judging:运行中
-#define OJ_AC 4  //Accepted:答案正确，请再接再厉。
-#define OJ_PE 5  //Presentation Error:答案基本正确，但是格式不对。
-#define OJ_WA 6  //Wrong Answer:答案不对，仅仅通过样例数据的测试并不一定是正确答案，一定还有你没想到的地方，点击查看系统可能提供的对比信息。
-#define OJ_TL 7  //Time Limit Exceeded:运行超出时间限制，检查下是否有死循环，或者应该有更快的计算方法
-#define OJ_ML 8  //Merrory Limit Exceeded:超出内存限制，数据可能需要压缩，检查内存是否有泄露
-#define OJ_OL 9  //Output Limit Exceeded:输出超过限制，你的输出超出了正确答案，一定是哪里弄错了
-#define OJ_RE 10 //Runtime Error:运行时错误，非法的内存访问，数组越界，指针漂移，调用禁用的系统函数。请点击后获得详细输出
-#define OJ_CE 11 //Compile Error:编译错误，请点击后获得编译器的详细输出
-#define OJ_CO 12 //Competition Over:竞赛结束???? 废弃
-#define OJ_PA 13 //Partial Accepted:部分正确
-#define OJ_SE 14 //System Error
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/resource.h>
@@ -34,13 +18,17 @@
 #include <string>
 #include <string.h>
 #include <wait.h>
+
+#include "configer.h"
+#include "client.h"
+#include "logger.h"
 using namespace std;
-// #include <stdarg.h>
 // #include <errno.h>
 // #include <algorithm>
 
 // extern int errno;
 static const char lang_txt[4][8] = {"java", "c", "cpp", "py"};
+static char compire_txt[4][8] = {"javac", "gcc", "g++", "py"};
 
 MYSQL *conn;
 static int Mode = 0;
@@ -52,70 +40,8 @@ static char oj_home[BUFF_SIZE];
 static int port_number;
 int Judge_Result = OJ_AC;
 
-void write_log(const char *fmt, ...)
-{
-    va_list ap;
-    char buffer[4096];
-    // sprintf(buffer, "%s/log/client.log", oj_home);
-    sprintf(buffer, "./log/log.txt");
-    FILE *fp = fopen(buffer, "a+");
-    if (fp == NULL)
-    {
-        fprintf(stderr, "openfile error!\n");
-        system("pwd");
-    }
-    va_start(ap, fmt);
-    //l =
-    vsprintf(buffer, fmt, ap);
-    fprintf(fp, "%s\n", buffer);
-    // if (DEBUG)
-    // printf("%s\n", buffer);
-    va_end(ap);
-    fclose(fp);
-}
-//清除字符串前后的空白
-void trim(char *c)
-{
-    char buf[BUFF_SIZE];
-    char *start, *end;
-    strcpy(buf, c);
-    start = buf;
-    while (isspace(*start))
-        start++;
-    end = start;
-    while (!isspace(*end))
-        end++;
-    *end = '\0';
-    strcpy(c, start);
-}
-//定位到 ‘=’ 后面
-int after_equal(char *c)
-{
-    int i = 0;
-    for (; c[i] != '\0' && c[i] != '='; i++)
-        ;
-    return ++i;
-}
-//读取config中指定key的(String)value
-bool read_buf(char *buf, const char *key, char *value)
-{
-    if (strncmp(buf, key, strlen(key)) == 0)
-    {
-        strcpy(value, buf + after_equal(buf));
-        trim(value);
-        return 1;
-    }
-    return 0;
-}
-//读取config中指定key的(Int)value
-void read_int(char *buf, const char *key, int *value)
-{
-    char buf2[BUFF_SIZE];
-    if (read_buf(buf, key, buf2))
-    {
-        sscanf(buf2, "%d", value);
-    }
-}
+static char work_dir[BUFF_SIZE];
+
 //初始化mysql配置
 void init_mysql_conf()
 {
@@ -211,7 +137,7 @@ void get_solution_info_mysql(char *solution_id, int &problem_id, int &user_id, i
     mysql_free_result(res);
 }
 //读取源码生成main.c/main.cpp
-void get_code_mysql(char *work_dir, char *solution_id, int lang)
+void get_code_mysql(char *solution_id, int lang)
 {
     MYSQL_RES *res;
     MYSQL_ROW row;
@@ -294,17 +220,18 @@ long get_file_size(const char *filename)
     return (long)f_stat.st_size;
 }
 //编译
-int compile(char *work_dir, int lang)
+int compile(int lang)
 {
     int pid;
     // freopen("log/error.out", "w", stdout);
     char buffer[BUFF_SIZE], out[BUFF_SIZE];
-    sprintf(buffer, "%s/code/main.cpp", work_dir);
+    sprintf(buffer, "%s/code/main.%s", work_dir, lang_txt[lang]);
     sprintf(out, "%s/code/main", work_dir);
-    char *compile_cpp[] = {"g++", buffer, "-o", out, "-w", NULL};
+    char *compire_type = compire_txt[lang];
+    char *compile_cpp[] = {compire_type, buffer, "-o", out, "-w", NULL};
     // char *arg[] = {"./alarm", NULL};
 
-    sprintf(buffer, "%s/log/ce.txt", work_dir);
+    // sprintf(buffer, "%s/log/ce.txt", work_dir);
     pid = fork();
     if (pid == 0) //子进程
     {
@@ -324,12 +251,14 @@ int compile(char *work_dir, int lang)
         {
             printf("编译中.....\n");
         }
-        freopen(buffer, "w", stderr);
-        if (execvp("g++", compile_cpp) == -1)
+        char err[BUFF_SIZE];
+        sprintf(err, "%s/log/ce.txt", work_dir);
+        freopen(err, "w", stderr);
+        if (execvp(compire_type, compile_cpp) == -1)
         {
             if (Mode == DEBUG) //Debug Mode
             {
-                printf("\t调用g++编译器错误\n");
+                printf("\t调用%s编译器错误\n", compire_type);
             }
             exit(1);
         }
@@ -341,7 +270,9 @@ int compile(char *work_dir, int lang)
         if (WIFEXITED(status) != 0)
         {
             // status = get_file_size("log/ce.txt");
-            status = get_file_size(buffer);
+            char err[BUFF_SIZE];
+            sprintf(err, "%s/log/ce.txt", work_dir);
+            status = get_file_size(err);
             if (Mode == DEBUG) //Debug Mode
             {
                 if (status == 0)
@@ -350,7 +281,8 @@ int compile(char *work_dir, int lang)
                 }
                 else
                 {
-                    printf("\t编译错误。\n");
+                    printf("\t编译错误。结束运行\n");
+                    exit(0);
                 }
             }
             return status;
@@ -381,12 +313,15 @@ int execute_cmd(const char *fmt, ...)
     return ret;
 }
 //创建工作空间
-void mk_work_dir(char *work_dir)
+void mk_work_dir()
 {
     char shm_path[BUFF_SIZE];
     sprintf(shm_path, "%s", work_dir);
     execute_cmd("/bin/mkdir -p %s", shm_path);
-    // execute_cmd("/bin/rm -rf %s", work_dir);
+    execute_cmd("/bin/mkdir -p %s/code", shm_path);
+    execute_cmd("/bin/mkdir -p %s/log", shm_path);
+    execute_cmd("/bin/mkdir -p %s/data", shm_path);
+    execute_cmd("/usr/bin/touch  %s/data/user.out", shm_path);
     // execute_cmd("/bin/ln -s %s %s/", shm_path, oj_home);
     // execute_cmd("/bin/chown judge %s ", shm_path);
     // execute_cmd("chmod 755 %s ", shm_path);
@@ -396,7 +331,7 @@ void mk_work_dir(char *work_dir)
 }
 
 //上传错误信息
-void add_ce_info(char *work_dir, char *solution_id)
+void add_ce_info(char *solution_id)
 {
     char sql[BUFF_SIZE], buf[BUFF_SIZE], buffer[BUFF_SIZE], *error = NULL;
     char result[BUFF_SIZE * 10];
@@ -477,16 +412,18 @@ void update_problem_submition(int problem_id)
     }
 }
 //执行编译结果
-void run_solution(char *work_dir, int lang, int time_limit, int memery_limit)
+void run_solution(int lang, int time_limit, int memery_limit)
 {
     char buffer[BUFF_SIZE];
-    sprintf(buffer, "%/log/error.txt", work_dir);
+    sprintf(buffer, "%s/log/error.txt", work_dir);
     freopen(buffer, "a+", stderr);
 
-    sprintf(buffer, "%/data/data.in", work_dir);
+    sprintf(buffer, "%s/data/data.in", work_dir);
+    cout << "样例输入路径[" << buffer << "]" << endl;
     freopen(buffer, "r", stdin);
 
-    sprintf(buffer, "%/data/user.out", work_dir);
+    sprintf(buffer, "%s/data/user.out", work_dir);
+    cout << "用户打印路径[" << buffer << "]" << endl;
     freopen(buffer, "w", stdout);
 
     //请求父进程追踪
@@ -510,8 +447,8 @@ void run_solution(char *work_dir, int lang, int time_limit, int memery_limit)
     LIM.rlim_cur = STD_MB << 10;
     setrlimit(RLIMIT_AS, &LIM);
 
-    sprintf(buffer, "%/code/main", work_dir);
-    if (execl("buffer", "buffer", (char *)NULL) == -1)
+    sprintf(buffer, "%s/code/main", work_dir);
+    if (execl(buffer, buffer, (char *)NULL) == -1)
     {
         exit(1);
     }
@@ -557,7 +494,7 @@ bool check_file_type(char *file_name, char *extension)
     return strcasecmp(extension, strrchr(file_name, '.')) == 0;
 }
 //查看运行结果
-void watch_solution(char *work_dir, pid_t pidApp, int &Judge_Result, int &usedtime)
+void watch_solution(pid_t pidApp, int &Judge_Result, int &usedtime)
 {
     int status, memory_usage = 0;
     struct rusage ruse;
@@ -652,34 +589,38 @@ void watch_solution(char *work_dir, pid_t pidApp, int &Judge_Result, int &usedti
  * input_result 测试用例结果
  * p_id
  */
-void prepare_file_to_run(char *input_file, char *input_result)
+void prepare_file_to_run(int problem_id, char *input_file, char *input_result)
 {
     printf("正在准备文件......\n\t输入文件(%s)  输出文件(%s)\n", input_file, input_result);
     char fullname[BUFF_SIZE];
-    sprintf(fullname, "./input/%s", input_file);           //ojhome中的文件
-    execute_cmd("/bin/cp -f %s ./data/data.in", fullname); //workdir
+    sprintf(fullname, "%s/problem_cases/%d/%s", oj_home, problem_id, input_file); //ojhome中的文件
+    execute_cmd("/bin/cp -f %s %s/data/data.in", fullname, work_dir);             //workdir
 
-    sprintf(fullname, "./input/%s", input_result);           //ojhome中的文件
-    execute_cmd("/bin/cp  -f %s ./data/data.out", fullname); //workdir
+    sprintf(fullname, "%s/problem_cases/%d/%s", oj_home, problem_id, input_result); //ojhome中的文件
+    execute_cmd("/bin/cp  -f %s %s/data/data.out", fullname, work_dir);             //workdir
 }
 void compare(const char *correct_result, const char *user_file)
 {
     FILE *res = fopen(correct_result, "r"), *user = fopen(user_file, "r");
-    char *res_buf = new char[BUFF_SIZE], *user_buf = new char[BUFF_SIZE];
+    char *res_buf = new char[BUFF_SIZE * 10], *user_buf = new char[BUFF_SIZE * 10];
 
     while (Judge_Result == OJ_AC && fgets(res_buf, BUFF_SIZE, res) != NULL)
     {
         printf("[%s", res_buf);
         if (fgets(user_buf, BUFF_SIZE, user) != NULL)
         {
-            // printf("{%s", user_buf);
+            printf("{%s", user_buf);
             //判断两个缓冲区是否相同
-            // printf("\t对比答案中.......\n");
+            printf("\t对比答案中.......\n");
             for (int i = 0; user_buf[i] != '\0' && i <= BUFF_SIZE - 1; i++)
             {
-                // printf("\t\t user[%c] res[s%c]", user_buf[i], res_buf[i]);
+                printf("\t\t user[%d] res[%d]\n", user_buf[i], res_buf[i]);
                 if (user_buf[i] != res_buf[i])
                 {
+                    if ((res_buf[i] == 10 || res_buf[i] == 13) && user_buf[i] == 10 || user_buf[i] == 13)
+                    {
+                        continue;
+                    }
                     Judge_Result = OJ_WA;
                     if (Mode == DEBUG) //Debug Mode
                     {
@@ -710,7 +651,10 @@ void compare(const char *correct_result, const char *user_file)
 }
 void judge_solution()
 {
-    compare("./data/data.out", "./data/user.out");
+    char buf1[BUFF_SIZE], buf2[BUFF_SIZE];
+    sprintf(buf1, "%s/data/data.out", work_dir);
+    sprintf(buf2, "%s/data/user.out", work_dir);
+    compare(buf1, buf2);
     if (Judge_Result != OJ_AC)
     {
         cout << "\t答案错误" << endl;
@@ -724,16 +668,14 @@ void judge_solution()
 int main(int argc, char **argv)
 {
 
-    // freopen("log/log.txt", "w", stdout);
-
     int problem_id = 0, user_id = 0, lang = 0, usedtime = 0;
 
     char *solution_id;
 
-    char work_dir[BUFF_SIZE], buffer[BUFF_SIZE];
+    char buffer[BUFF_SIZE];
 
     strcpy(oj_home, "/oj-home");
-    chdir(oj_home); // change the dir
+    chdir(oj_home); 
 
     // open DIRs
     DIR *dp;
@@ -747,34 +689,34 @@ int main(int argc, char **argv)
     {
         exit(0);
     }
-    sprintf(work_dir, "/oj-home/judge/%s", solution_id);
+    sprintf(work_dir, "/%s/judge/%s", oj_home, solution_id);
 
-    mk_work_dir(work_dir);
+    mk_work_dir();
 
     chdir(work_dir);
 
     get_solution_info_mysql(solution_id, problem_id, user_id, lang);
 
-    get_code_mysql(work_dir, solution_id, lang);
+    get_code_mysql(solution_id, lang);
 
-    int comile_flag = compile(work_dir, lang);
+    int comile_flag = compile(lang);
 
     if (comile_flag != 0)
     {
-        // add_ce_info(work_dir, solution_id);
-        // update_solution_info(solution_id, OJ_CE, 0, 0);
-        // update_user_submition(user_id);
-        // update_problem_submition(problem_id);
+        add_ce_info(solution_id);
+        update_solution_info(solution_id, OJ_CE, 0, 0);
+        update_user_submition(user_id);
+        update_problem_submition(problem_id);
     }
     else
     {
-        // update_solution_info(solution_id, OJ_JI, 0, 0);
+        update_solution_info(solution_id, OJ_JI, 0, 0);
     }
     //是否可运行
     pid_t pidApp = fork();
     if (pidApp == 0) //子进程
     {
-        run_solution(work_dir, lang, 100, 100);
+        run_solution(lang, 100, 100);
     }
     else
     {
@@ -782,9 +724,9 @@ int main(int argc, char **argv)
         {
             printf("父进程:\n\t开始检查子进程运行之后的结果(子进程Id:%d)\n", (int)pidApp);
         }
-        watch_solution(work_dir, pidApp, Judge_Result, usedtime);
+        watch_solution(pidApp, Judge_Result, usedtime);
     }
-    sprintf(buffer, "%s/%s", oj_home, solution_id);
+    sprintf(buffer, "%s/problem_cases/%d", oj_home, problem_id);
     //读取目录文件失败则判题子程序退出，-1
     if ((dp = opendir(buffer)) == NULL)
     {
@@ -824,16 +766,16 @@ int main(int argc, char **argv)
                 char tmp[BUFF_SIZE] = {'\0'};
                 strcpy(tmp, dirp->d_name);
                 strtok(tmp, ".");
-                prepare_file_to_run(dirp->d_name, strcat(tmp, ".out"));
+                prepare_file_to_run(problem_id, dirp->d_name, strcat(tmp, ".out"));
 
                 pid_t pidApp = fork();
                 if (pidApp == 0)
                 {
-                    run_solution(work_dir, lang, 100, 100);
+                    run_solution(lang, 100, 100);
                 }
                 else
                 {
-                    watch_solution(work_dir, pidApp, Judge_Result, usedtime);
+                    watch_solution(pidApp, Judge_Result, usedtime);
                     judge_solution();
                 }
             }
