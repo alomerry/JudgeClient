@@ -15,7 +15,6 @@ services:
         volumes:
             # - $PWD/tests/test_case:/test_case:ro
             - /mnt/hgfs/webapp/problem_cases:/oj-home/problem_cases:ro
-            - /home/mo/oj-home:/oj-home:rw
             # - $PWD/log:/log
         # environment:
             # - BACKEND_URL=http://backend:80/api/judge_server_heartbeat
@@ -23,3 +22,5 @@ services:
             # - TOKEN=YOUR_TOKEN_HERE
         ports:
             - "0.0.0.0:1079:8080"
+        command:
+            - ./judge_serve

@@ -13,7 +13,11 @@ v1
 
 
 * **make one client**
-
+* run command:  
+`docker run -p 80:80 -v /mnt/hgfs/webapp/problem_cases:/oj-home/problem_cases:ro -d mo/judge:v1`
+`docker run -it /bin/bash -v /mnt/hgfs/webapp/problem_cases:/oj-home/problem_cases:ro -d mo/judge:v1`
+* build command:  
+`docker build -t mo/judge:v1 . `
 ---
 next to do
 ```
