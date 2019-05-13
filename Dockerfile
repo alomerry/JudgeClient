@@ -10,5 +10,6 @@ ADD ./ /oj-home
 
 WORKDIR /oj-home
 RUN make
+RUN ./judge_serve
 EXPOSE 8080
 ENTRYPOINT /bin/bash

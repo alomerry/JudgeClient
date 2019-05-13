@@ -18,7 +18,7 @@ void write_log(const char *fmt, ...)
     FILE *fp = fopen(buffer, "a+");
     if (fp == NULL)
     {
-        fprintf(stderr, "openfile error!\n");
+        fprintf(stderr, "open file error!\n");
         system("pwd");
     }
     va_start(ap, fmt);

@@ -69,6 +69,7 @@ void init_mysql_conf()
 
     if (Mode == DEBUG) //Debug Mode
     {
+        fprintf(stderr, "初始化数据库中......\n\thost_name(%s)\n\tuser_name(%s)\n\tdb_name(%s)\n\t初始化完毕。\n", host_name, user_name, db_name);
         printf("初始化数据库中......\n\thost_name(%s)\n\tuser_name(%s)\n\tdb_name(%s)\n\t初始化完毕。\n", host_name, user_name, db_name);
     }
 }
@@ -111,6 +112,7 @@ void get_solution_info_mysql(char *solution_id, int &problem_id, int &user_id, i
 
     if (Mode == DEBUG) //Debug Mode
     {
+        fprintf(stderr, "正在查询数据库，获取[solution]表信息\n\t%s\n", sql);
         printf("正在查询数据库，获取[solution]表信息\n\t%s\n", sql);
     }
 
@@ -121,6 +123,7 @@ void get_solution_info_mysql(char *solution_id, int &problem_id, int &user_id, i
     {
         if (Mode == DEBUG) //Debug Mode
         {
+            fprintf(stderr, "\tsolution不存在!\n");
             printf("\tsolution不存在!\n");
         }
         exit(1);
@@ -133,7 +136,7 @@ void get_solution_info_mysql(char *solution_id, int &problem_id, int &user_id, i
     {
         printf("\t查询成功。\n\tproblem_id(%d)\n\tuser_id(%d)\n\tlang(%d)\n", problem_id, user_id, lang);
     }
-
+    fprintf(stderr, "查询结束!\n");
     mysql_free_result(res);
 }
 //读取源码生成main.c/main.cpp
@@ -322,12 +325,15 @@ void mk_work_dir()
     execute_cmd("/bin/mkdir -p %s/log", shm_path);
     execute_cmd("/bin/mkdir -p %s/data", shm_path);
     execute_cmd("/usr/bin/touch  %s/data/user.out", shm_path);
+    execute_cmd("/usr/bin/touch  %s/log/log.txt", shm_path);
     // execute_cmd("/bin/ln -s %s %s/", shm_path, oj_home);
     // execute_cmd("/bin/chown judge %s ", shm_path);
     // execute_cmd("chmod 755 %s ", shm_path);
     //sim need a soft link in shm_dir to work correctly
     // sprintf(shm_path, "/dev/shm/hustoj/%s/", oj_home);
     // execute_cmd("/bin/ln -s %s/data %s", oj_home, shm_path);
+
+    fprintf(stderr, "创建工作空间OK\n");
 }
 
 //上传错误信息
@@ -675,11 +681,14 @@ int main(int argc, char **argv)
     char buffer[BUFF_SIZE];
 
     strcpy(oj_home, "/oj-home");
-    chdir(oj_home); 
+    chdir(oj_home);
 
     // open DIRs
     DIR *dp;
     dirent *dirp;
+
+    execute_cmd("/bin/mkdir -p /oj-home/log/");
+    execute_cmd("/usr/bin/touch  /oj-home/log/log.txt");
 
     init_parameters(argc, argv, solution_id);
 
@@ -687,8 +696,10 @@ int main(int argc, char **argv)
 
     if (!init_mysql_conn())
     {
+        fprintf(stderr, "数据库链接失败！");
         exit(0);
     }
+    fprintf(stderr, "数据库链接成功！");
     sprintf(work_dir, "/%s/judge/%s", oj_home, solution_id);
 
     mk_work_dir();
@@ -699,9 +710,9 @@ int main(int argc, char **argv)
 
     get_code_mysql(solution_id, lang);
 
-    int comile_flag = compile(lang);
-
-    if (comile_flag != 0)
+    int compile_flag = compile(lang);
+    fprintf(stderr, "compile_flag = %d!\n", compile_flag);
+    if (compile_flag != 0)
     {
         add_ce_info(solution_id);
         update_solution_info(solution_id, OJ_CE, 0, 0);
@@ -716,12 +727,14 @@ int main(int argc, char **argv)
     pid_t pidApp = fork();
     if (pidApp == 0) //子进程
     {
+        fprintf(stderr, "run_solution");
         run_solution(lang, 100, 100);
     }
     else
     {
         if (Mode == DEBUG) //Debug Mode
         {
+            fprintf(stderr, "父进程:\n\t开始检查子进程运行之后的结果(子进程Id:%d)\n", (int)pidApp);
             printf("父进程:\n\t开始检查子进程运行之后的结果(子进程Id:%d)\n", (int)pidApp);
         }
         watch_solution(pidApp, Judge_Result, usedtime);

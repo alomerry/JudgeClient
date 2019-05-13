@@ -204,7 +204,7 @@ int get_unjudged_solutions(string *solutions)
         {
             printf("\tsolution不存在!\n");
         }
-        exit(1);
+        exit(0);
     }
 
     if (Mode == DEBUG) //Debug Mode
@@ -311,16 +311,20 @@ int main(int argc, char **argv)
     // signal(SIGKILL, call_for_exit);
     // signal(SIGTERM, call_for_exit);
     int j = 1;
-    // while (1)
+    while (1)
     { // start to run
         while (j && init_mysql_conn())
         {
 
             printf("%s%d%s\n", "/************************** work 工作前 result [", j, "] ***********************/");
+            fprintf(stderr, "%s%d%s\n", "/************************** work 工作前 result [", j, "] ***********************/");
             j = work(); //如果读取失败或者没有要评测的数据，那么返回0，利用那么有限的几个进程来评测无限的任务量
             printf("%s%d%s\n", "/************************** work 工作后 result [", j, "] ***********************/");
+            fprintf(stderr, "%s%d%s\n", "/************************** work 工作后 result [", j, "] ***********************/");
             j = 0;
         }
+        printf("%s%d%s\n", "/************************** 本次工作结束，休息【1】秒钟 ***********************/");
+        fprintf(stderr, "%s%d%s\n", "/************************** 本次工作结束，休息【1】秒钟 ***********************/");
         sleep(sleep_time);
         // j = 1;
     }
