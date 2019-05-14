@@ -1,9 +1,16 @@
-#include "configer.h"
 #include <string.h>
 #include <ctype.h>
 #include <stdio.h>
+#include <stdarg.h>
+#include <stdlib.h>
 
-//清除字符串前后的空白
+#include "configer.h"
+#include "logger.h"
+
+/**
+ * 清除字符串前后的空白
+ * str 待操作字符串
+ */
 void trim(char *c)
 {
     char buf[configer_buffer_size];
@@ -18,7 +25,10 @@ void trim(char *c)
     *end = '\0';
     strcpy(c, start);
 }
-//定位到 ‘=’ 后面
+/**
+ * 定位到 ‘=’ 后面
+ * str 待定位字符串 
+ */
 int after_equal(char *c)
 {
     int i = 0;
@@ -26,7 +36,9 @@ int after_equal(char *c)
         ;
     return ++i;
 }
-
+/**
+ * 读取string
+ */
 bool read_buf(char *buf, const char *key, char *value)
 {
     if (strncmp(buf, key, strlen(key)) == 0)
@@ -37,7 +49,9 @@ bool read_buf(char *buf, const char *key, char *value)
     }
     return 0;
 }
-//读取config中指定key的(Int)value
+/**
+ * 读取config中指定key的(Int)value
+ */
 void read_int(char *buf, const char *key, int *value)
 {
     char buf2[configer_buffer_size];
@@ -45,4 +59,40 @@ void read_int(char *buf, const char *key, int *value)
     {
         sscanf(buf2, "%d", value);
     }
+}
+
+/**
+ * 执行cmd命令
+ */
+int execute_cmd(const char *fmt, ...)
+{
+    char cmd[4090];
+    int ret = 0;
+    va_list ap;
+
+    va_start(ap, fmt);
+    vsprintf(cmd, fmt, ap);
+    show_log('v', "execute_cmd", "执行了cmd[%s]", cmd);
+    ret = system(cmd);
+
+    va_end(ap);
+    return ret;
+}
+
+void print_runtimeerror(char *err)
+{
+    FILE *ferr = fopen("log/error.txt", "a+");
+    fprintf(ferr, "Runtime Error:%s\n", err);
+    fclose(ferr);
+}
+
+/**
+ * 获取文件后缀名
+ * filename 文件名
+ * extension 后缀名
+ */
+bool check_file_type(char *file_name, char *extension)
+{
+    show_log('v', "check_file_type", "#-判断文件后缀名-%s(%s) = %d", strrchr(file_name, '.'), extension, strcasecmp(extension, strrchr(file_name, '.')) == 0);
+    return strcasecmp(extension, strrchr(file_name, '.')) == 0;
 }

@@ -17,4 +17,27 @@
 #define OJ_PA 13 //Partial Accepted:部分正确
 #define OJ_SE 14 //System Error
 
+#define BUFF_SIZE 512
+#define STD_MB 1048576
+
+static const char lang_txt[4][8] = {"java", "c", "cpp", "py"};
+static char compire_txt[4][8] = {"javac", "gcc", "g++", "py"};
+
+long get_file_size(const char *filename);
+
+int compile(int lang, char *work_dir);
+
+void mk_work_dir(char *work_dir);
+
+void run_solution(int lang, int time_limit, int memery_limit, char *work_dir);
+
+int get_proc_status(pid_t pid, const char *mark);
+
+void watch_solution(pid_t pidApp, int &Judge_Result, int &usedtime, char *work_dir);
+
+void prepare_file_to_run(int problem_id, char *input_file, char *input_result, char *work_dir, char *oj_home);
+
+void compare(const char *correct_result, const char *user_file, int &Judge_Result);
+
+void judge_solution(int &Judge_Result,char * work_dir);
 #endif
