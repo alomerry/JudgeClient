@@ -45,6 +45,8 @@ static char work_dir[BUFF_SIZE];
 //初始化mysql配置
 void init_mysql_conf()
 {
+
+    show_log('i', "client-init_mysql_conf", "初始化数据库中...");
     FILE *fp = NULL;
     char buf[BUFF_SIZE];
     host_name[0] = 0;
@@ -64,13 +66,11 @@ void init_mysql_conf()
             read_buf(buf, "OJ_DB_NAME", db_name);
             read_int(buf, "OJ_PORT_NUMBER", &port_number);
         }
+        show_log('v', "client-init_mysql_conf", "host_name(%s),user_name(%s),db_name(%s)", host_name, user_name, db_name);
         fclose(fp);
     }
 
-    if (Mode == DEBUG) //Debug Mode
-    {
-        printf("初始化数据库中......\n\thost_name(%s)\n\tuser_name(%s)\n\tdb_name(%s)\n\t初始化完毕。\n", host_name, user_name, db_name);
-    }
+    show_log('i', "client-init_mysql_conf", "初始化数据库中完毕。");
 }
 //初始化mysql连接
 int init_mysql_conn()

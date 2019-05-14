@@ -9,71 +9,45 @@
 #include <signal.h>
 #include <string.h>
 #include <wait.h>
+
+#include "configer.h"
+#include "logger.h"
 using namespace std;
 
+//MySQL连接
 MYSQL *conn;
+//调试/运行 模式
 static int Mode = 0;
 static bool STOP = false;
+//数据库连接名称
 static char host_name[BUFF_SIZE];
+//数据库用户名
 static char user_name[BUFF_SIZE];
+//数据库密码
 static char password[BUFF_SIZE];
+//数据库名称
 static char db_name[BUFF_SIZE];
+//运行时目录
 static char oj_home[BUFF_SIZE];
 static char lang_set[BUFF_SIZE];
+//数据库连接端口
 static int port_number;
+//轮训数据库间隔时间
 static int sleep_time;
+//最多判题进程数
 static int max_running;
 void call_for_exit(int s)
 {
     STOP = true;
     printf("Stopping judged...\n");
 }
-//清除字符串前后的空白
-void trim(char *c)
-{
-    char buf[BUFF_SIZE];
-    char *start, *end;
-    strcpy(buf, c);
-    start = buf;
-    while (isspace(*start))
-        start++;
-    end = start;
-    while (!isspace(*end))
-        end++;
-    *end = '\0';
-    strcpy(c, start);
-}
-//定位到 ‘=’ 后面
-int after_equal(char *c)
-{
-    int i = 0;
-    for (; c[i] != '\0' && c[i] != '='; i++)
-        ;
-    return ++i;
-}
-//读取config中指定key的(String)value
-bool read_buf(char *buf, const char *key, char *value)
-{
-    if (strncmp(buf, key, strlen(key)) == 0)
-    {
-        strcpy(value, buf + after_equal(buf));
-        trim(value);
-        return 1;
-    }
-    return 0;
-}
-//读取config中指定key的(Int)value
-void read_int(char *buf, const char *key, int *value)
-{
-    char buf2[BUFF_SIZE];
-    if (read_buf(buf, key, buf2))
-    {
-        sscanf(buf2, "%d", value);
-    }
-}
-//初始化mysql配置
+
+/**
+ * 初始化数据库
+ */
 void init_mysql_conf()
 {
+    show_log('i', "serve-init_mysql_conf", "初始化数据库中...");
     FILE *fp = NULL;
     char buf[BUFF_SIZE];
     host_name[0] = 0;
@@ -96,13 +70,10 @@ void init_mysql_conf()
             read_int(buf, "OJ_SLEEP_TIME", &sleep_time);
             read_int(buf, "OJ_RUNNING", &max_running);
         }
+        show_log('v', "serve-init_mysql_conf", "host_name(%s),user_name(%s),db_name(%s)", host_name, user_name, db_name);
         fclose(fp);
     }
-
-    if (Mode == DEBUG) //Debug Mode
-    {
-        printf("初始化数据库中......\n\thost_name(%s)\n\tuser_name(%s)\n\tdb_name(%s)\n\t初始化完毕。\n", host_name, user_name, db_name);
-    }
+    show_log('i', "serve-init_mysql_conf", "初始化数据库中完毕。");
 }
 //初始化mysql连接
 int init_mysql_conn()
@@ -111,24 +82,14 @@ int init_mysql_conn()
     const char timeout = 30;
     //配置连接时间
     mysql_options(conn, MYSQL_OPT_CONNECT_TIMEOUT, &timeout);
-
-    if (Mode == DEBUG) //Debug Mode
-    {
-        printf("初始化数据库连接中......\n");
-    }
+    show_log('i', "serve-init_mysql_conn", "初始化数据库连接中......");
 
     if (!mysql_real_connect(conn, host_name, user_name, password, db_name, port_number, NULL, 0))
     {
-        if (Mode == DEBUG) //Debug Mode
-        {
-            printf("\t初始化失败。\n");
-        }
+        show_log('i', "serve-init_mysql_conn", "初始化失败。");
         return 0;
     }
-    if (Mode == DEBUG) //Debug Mode
-    {
-        printf("\t初始化成功。\n");
-    }
+    show_log('i', "serve-init_mysql_conn", "初始化成功。");
     return 1;
 }
 int daemon_init(void)
@@ -190,36 +151,25 @@ int get_unjudged_solutions(string *solutions)
     char sql[BUFF_SIZE];
 
     sprintf(sql, "select solution_id from solution where language in (0,1,2,3) and result = 0 limit %d", max_running * 2);
-
-    if (Mode == DEBUG) //Debug Mode
-    {
-        printf("正在查询数据库，获取[solution]表信息\n\t%s\n", sql);
-    }
+    show_log('v', "serve-get_unjudged_solutions", "查询未评判的提交，查询代码[%s]", sql);
 
     mysql_real_query(conn, sql, strlen(sql));
     res = mysql_store_result(conn);
     if (mysql_num_rows(res) == 0)
     {
-        if (Mode == DEBUG) //Debug Mode
-        {
-            printf("\tsolution不存在!\n");
-        }
+        show_log('v', "serve-get_unjudged_solutions", "当前不存在未评判的提交");
         int i = 0;
-        while (i <= max_running * 2)
+        while (i <= max_running * 2) //将提交Id数组设置为0
             solutions[i++] = "0";
         return 0;
     }
-
-    if (Mode == DEBUG) //Debug Mode
-    {
-        printf("\t查询成功。\n");
-    }
+    show_log('v', "serve-get_unjudged_solutions", "查询到%d条未评判的提交", mysql_num_rows(res));
 
     int i = 0, ret = 0;
     while ((row = mysql_fetch_row(res)) != NULL)
     {
         solutions[i++] = row[0];
-        printf("\t查询SolutionId[%s]。\n", row[0]);
+        show_log('v', "serve-get_unjudged_solutions", "\tSolutionId[%s]", row[0]);
     }
     ret = i;
     while (i <= max_running * 2)
@@ -231,7 +181,7 @@ void run_client(string solution)
 {
     if (execl("./judge_client", "./judge_client", solution.c_str(), "1", (char *)NULL) == -1)
     {
-        printf("调用失败!");
+        show_log('v', "serve-run_client", "\tSolutionId[%s]", "调用失败!");
     }
 }
 int work()
@@ -244,9 +194,10 @@ int work()
     string solutions[max_running * 2 + 1]; //max_running 从judge.conf获取，一般为4，这里设置为工作目录：9
     pid_t tmp_pid = 0;
 
-    if (!get_unjudged_solutions(solutions)) //如果读取失败或者要评测题目数量为0，jobs[]被置为：1001，1002，0，...0；默认9位
+    if (!get_unjudged_solutions(solutions)) //如果读取失败或者要评测题目数量为0，jobs[]被置为：0，0，0，...0；默认9位
         ret_cnt = 0;
 
+    //修改待评测Id jobs[]被置为：1001，1002，0，...0；默认9位
     for (int j = 0; solutions[j].compare("0") != 0; j++)
     {
         solution_id = solutions[j];
@@ -269,7 +220,7 @@ int work()
         ID[i] = fork();
         if (ID[i] == 0)
         {
-            printf("%s[%s]\n", "子进程启动", solution_id);
+            show_log('v', "serve-work", "子进程启动");
             run_client(solution_id);
             exit(0);
         }
@@ -286,7 +237,7 @@ int work()
             if (ID[i] == tmp_pid)
                 break; // got the client id
         ID[i] = 0;
-        printf("tmp_pid = %d\n", tmp_pid);
+        show_log('v', "serve-work", "tmp_pid = %d", tmp_pid);
     }
 
     return ret_cnt;
@@ -295,9 +246,8 @@ int main(int argc, char **argv)
 {
 
     strcpy(oj_home, "/oj-home");
-    chdir(oj_home); // change the dir
+    chdir(oj_home);
 
-    Mode = DEBUG;
     // if (!DEBUG)
     //     daemon_init(); //创建一个daemon守护进程
     // if (strcmp(oj_home, "/home/judge") == 0 && already_running())
@@ -319,15 +269,15 @@ int main(int argc, char **argv)
         while (j && init_mysql_conn())
         {
 
-            printf("%s%d%s\n", "/************************** work 工作前 result [", j, "] ***********************/\0");
-            j = work(); //如果读取失败或者没有要评测的数据，那么返回0，利用那么有限的几个进程来评测无限的任务量
-            printf("%s%d%s\n", "/************************** work 工作后 result [", j, "] ***********************/\0");
-            // j = 0;
+            printf("%s%d%s\n", "//\0");
+            show_log('d', "serve-main", "|************************** work 工作前 result [%d] ***********************|", j);
+            j = work(); //如果读取失败或者没有要评测的数据，那么返回0，否则利用那么有限的几个进程来评测无限的任务量
+            show_log('d', "serve-main", "|************************** work 工作后 result [%d] ***********************|", j);
         }
-        printf("%s%s\n", "/************************** 本次工作结束，休息[1]秒钟 ***********************/\0");
+        show_log('d', "serve-main", "|************************** 本次工作结束，休息[%d]秒钟 ***********************|", sleep_time % 200);
         sleep(sleep_time * 5);
         j = 1;
     }
-    printf("%s\n", "/************************** serve结束 ***********************/");
+    show_log('w', "serve-main", "|************************** serve结束 ***********************|");
     return 0;
 }
