@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include "configer.h"
 #include "logger.h"
@@ -95,4 +96,16 @@ bool check_file_type(char *file_name, char *extension)
 {
     show_log('v', "check_file_type", "#-判断文件后缀名-%s(%s) = %d", strrchr(file_name, '.'), extension, strcasecmp(extension, strrchr(file_name, '.')) == 0);
     return strcasecmp(extension, strrchr(file_name, '.')) == 0;
+}
+
+char *getNowTime()
+{
+    char buf[512];
+    time_t t;
+    struct tm *lt;
+    time(&t);                                                                                                            //获取Unix时间戳。
+    lt = localtime(&t);                                                                                                  //转为时间结构。
+    sprintf(buf, "%d-%d-%d %d:%d:%d", lt->tm_year + 1900, lt->tm_mon, lt->tm_mday, lt->tm_hour, lt->tm_min, lt->tm_sec); //输出结果
+    show_log('i', "getNowTime", "当前时间[%s]", buf);
+    return buf;
 }

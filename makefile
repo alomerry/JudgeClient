@@ -5,7 +5,7 @@ judge_client:judge_client.cpp client.o logger.o configer.o cdbc.o
 	g++ judge_client.cpp client.o logger.o configer.o cdbc.o -o judge_client -lmysqlclient -L/usr/lib64/mysql -std=c++11
 client.o:client.cpp
 	g++ -c client.cpp
-cdbc.o:cdbc.cpp logger.o
+cdbc.o:cdbc.cpp logger.o configer.o
 	g++ -c cdbc.cpp
 configer.o:configer.cpp logger.o
 	g++ -c configer.cpp
