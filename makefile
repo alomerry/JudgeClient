@@ -9,7 +9,7 @@ cdbc.o:cdbc.cpp logger.o
 	g++ -c cdbc.cpp
 configer.o:configer.cpp logger.o
 	g++ -c configer.cpp
-logger.o:logger.cpp configer.o
+logger.o:logger.cpp
 	g++ -c logger.cpp
 clean:
 	rm -rf judge_serve judge_client *.o

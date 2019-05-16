@@ -81,7 +81,7 @@ void add_ce_info(char *solution_id, MYSQL *&conn, char *work_dir)
     char sql[BUFF_SIZE], buf[BUFF_SIZE], buffer[BUFF_SIZE], *error = NULL;
     char result[BUFF_SIZE * 10];
 
-    snprintf(sql, sizeof(sql), "delete from compile_info where solution_id='%s')", solution_id);
+    snprintf(sql, sizeof(sql), "delete from compile_info where solution_id='%s'", solution_id);
     sprintf(buffer, "%s/log/ce.txt", work_dir);
     show_log('v', "client-add_ce_info", "删除提交Id的其他编译错误信息，即将添加新的编译信息,sql代码[%s]", sql);
 
@@ -129,16 +129,31 @@ void update_solution_info(MYSQL *&conn, char *solution_id, int result, int time,
  * 更新用户提交数
  * 数据库连接指针
  * 用户Id
+ * 是否成功完成题目
  */
-void update_user_submition(MYSQL *&conn, int user_id)
+void update_user_submition(MYSQL *&conn, int user_id, bool successed_flag)
 {
     char sql[BUFF_SIZE];
-    sprintf(sql, "update users set submit=submit+1 where user_id = %d", user_id);
-    show_log('v', "client-update_user_submition", "更新[users]表数据,sql代码[%s]", sql);
 
-    if (mysql_real_query(conn, sql, strlen(sql)))
+    if (successed_flag)
     {
-        show_log('e', "client-update_solution_info", "更新失败，错误原因[%s]", mysql_error(conn));
+        sprintf(sql, "update users set submit=submit+1,solved=solved+1 where user_id = %d", user_id);
+        show_log('v', "client-update_user_submition", "更新[users]表数据,sql代码[%s]", sql);
+
+        if (mysql_real_query(conn, sql, strlen(sql)))
+        {
+            show_log('e', "client-update_solution_info", "更新失败，错误原因[%s]", mysql_error(conn));
+        }
+    }
+    else
+    {
+        sprintf(sql, "update users set submit=submit+1 where user_id = %d", user_id);
+        show_log('v', "client-update_user_submition", "更新[users]表数据,sql代码[%s]", sql);
+
+        if (mysql_real_query(conn, sql, strlen(sql)))
+        {
+            show_log('e', "client-update_solution_info", "更新失败，错误原因[%s]", mysql_error(conn));
+        }
     }
 }
 
@@ -147,16 +162,30 @@ void update_user_submition(MYSQL *&conn, int user_id)
  * 数据库连接指针
  * 题目Id
  */
-void update_problem_submition(MYSQL *&conn, int problem_id)
+void update_problem_submition(MYSQL *&conn, int problem_id, bool successed_flag)
 {
     char sql[BUFF_SIZE];
-    sprintf(sql, "update problems set submit=submit+1 where problem_id = %d", problem_id);
-
-    show_log('v', "client-update_user_submition", "更新[problems]表数据,sql代码[%s]", sql);
-
-    if (mysql_real_query(conn, sql, strlen(sql)))
+    if (successed_flag)
     {
-        show_log('e', "client-update_solution_info", "更新失败，错误原因[%s]", mysql_error(conn));
+        sprintf(sql, "update problems set submit=submit+1,accepted=accepted+1 where problem_id = %d", problem_id);
+
+        show_log('v', "client-update_user_submition", "更新[problems]表数据,sql代码[%s]", sql);
+
+        if (mysql_real_query(conn, sql, strlen(sql)))
+        {
+            show_log('e', "client-update_solution_info", "更新失败，错误原因[%s]", mysql_error(conn));
+        }
+    }
+    else
+    {
+        sprintf(sql, "update problems set submit=submit+1 where problem_id = %d", problem_id);
+
+        show_log('v', "client-update_user_submition", "更新[problems]表数据,sql代码[%s]", sql);
+
+        if (mysql_real_query(conn, sql, strlen(sql)))
+        {
+            show_log('e', "client-update_solution_info", "更新失败，错误原因[%s]", mysql_error(conn));
+        }
     }
 }
 

@@ -63,7 +63,7 @@ int compile(int lang, char *work_dir)
             {
                 show_log('v', "client-compile", "编译错误。结束运行。");
                 //todo 修改oj flag
-                exit(0);
+                // exit(0);
             }
             return status;
         }
@@ -306,7 +306,6 @@ void compare(const char *correct_result, const char *user_file, int &Judge_Resul
         {
             // printf("{%s", user_buf);
             //判断两个缓冲区是否相同
-            printf("\t对比答案中...dafdsfdsafdsdsddddddddddddddddddddddddd....\n");
             for (int i = 0; user_buf[i] != '\0' && i <= BUFF_SIZE - 1; i++)
             {
                 // printf("\t\t user[%d] res[%d]\t", user_buf[i], res_buf[i]);

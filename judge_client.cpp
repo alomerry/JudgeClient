@@ -92,9 +92,9 @@ void init_parameters(int argc, char **argv, char *&solution_id)
 
 int main(int argc, char **argv)
 {
-
     int problem_id = 0,
         usedtime = 0,
+        usedmemory = 0,
         user_id = 0,
         lang = 0;
 
@@ -103,7 +103,7 @@ int main(int argc, char **argv)
     char buffer[BUFF_SIZE];
 
     strcpy(oj_home, "/oj-home");
-    chdir(oj_home);
+    // chdir(oj_home);
 
     DIR *dp;
     dirent *dirp;
@@ -135,10 +135,13 @@ int main(int argc, char **argv)
     int compile_flag = compile(lang, work_dir);
     if (compile_flag != 0)
     {
+        show_log('e', "client-main", "编译错误,结束本次评判，更新数据库");
+        Judge_Result = OJ_CE;
         add_ce_info(solution_id, conn, work_dir);
         update_solution_info(conn, solution_id, OJ_CE, 0, 0);
-        update_user_submition(conn, user_id);
-        update_problem_submition(conn, problem_id);
+        update_user_submition(conn, user_id, false);
+        update_problem_submition(conn, problem_id, false);
+        return 0;
     }
     else
     {
@@ -206,7 +209,13 @@ int main(int argc, char **argv)
             }
         }
     }
+
     show_log('v', "client-main", "整个程序结束，最终结果 [%s]", Judge_Result == OJ_AC ? "正确" : "失败");
+
+    update_solution_info(conn, solution_id, Judge_Result, Judge_Result == OJ_AC ? usedtime : 0, Judge_Result == OJ_AC ? usedmemory : 0);
+    update_user_submition(conn, user_id, Judge_Result == OJ_AC);
+    update_problem_submition(conn, problem_id, Judge_Result == OJ_AC);
+
     mysql_close(conn);
     show_log('v', "client-main", "|************************** client结束 ***********************|");
 

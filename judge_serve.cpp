@@ -246,7 +246,7 @@ int main(int argc, char **argv)
 {
 
     strcpy(oj_home, "/oj-home");
-    chdir(oj_home);
+    // chdir(oj_home);
 
     // if (!DEBUG)
     //     daemon_init(); //创建一个daemon守护进程

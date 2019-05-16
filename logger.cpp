@@ -6,7 +6,6 @@
 #include <iostream>
 #include <stdlib.h>
 
-#include "configer.h"
 
 using namespace std;
 
